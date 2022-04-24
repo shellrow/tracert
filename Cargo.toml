@@ -1,6 +1,6 @@
 [package]
 name = "tracert"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["shellrow <shellrow@protonmail.com>"]
 description = "traceroute library"
@@ -13,3 +13,4 @@ license = "MIT"
 [dependencies]
 socket2 = { version = "0.4.3", features = ["all"] }
 pnet_packet = "0.28.0"
+dns-lookup = "1.0"
