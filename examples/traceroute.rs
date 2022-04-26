@@ -1,5 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr};
-use tracert::Tracer;
+use tracert::trace::Tracer;
 
 fn main() {
     // Trace the route to scanme.nmap.org (45.33.32.156)
