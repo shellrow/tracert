@@ -11,3 +11,19 @@ use self::windows::trace_route;
 mod node;
 mod tracer;
 pub use tracer::*;
+
+use std::time::Duration;
+
+#[derive(Clone, Debug)]
+pub enum TraceStatus {
+    Done,
+    Error,
+    Timeout,
+}
+
+#[derive(Clone, Debug)]
+pub struct TraceResult {
+    pub nodes: Vec<node::Node>,
+    pub status: TraceStatus,
+    pub trace_time: Duration,
+}

@@ -7,10 +7,12 @@ fn main() {
     let tracer: Tracer = Tracer::new(dst_ip).unwrap();
     // Run trace
     match tracer.trace() {
-        Ok(nodes) => {
-            for node in nodes {
+        Ok(r) => {
+            println!("Status: {:?}", r.status);
+            for node in r.nodes {
                 println!("{:?}", node);
             }
+            println!("Trace Time: {:?}", r.trace_time);
         },
         Err(e) => {
             print!("{}", e);

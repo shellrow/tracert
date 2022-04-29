@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 use std::time::Duration;
-use super::node::Node;
+use super::TraceResult;
 
 pub(crate) const BASE_DST_PORT: u16 = 33435;
 
@@ -40,7 +40,7 @@ impl Tracer {
                     max_hop: 64,
                     trace_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
-                    send_rate: Duration::from_millis(1000),
+                    send_rate: Duration::from_millis(0),
                 };
                 return Ok(tracer);
             },
@@ -49,7 +49,7 @@ impl Tracer {
             },
         }
     }
-    pub fn trace(&self) -> Result<Vec<Node>, String> {
+    pub fn trace(&self) -> Result<TraceResult, String> {
         super::trace_route(self.clone())
     }
     pub fn set_src_ip(&mut self, src_ip: IpAddr){

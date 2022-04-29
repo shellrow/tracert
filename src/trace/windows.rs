@@ -6,6 +6,7 @@ use std::ptr;
 use std::sync::Once;
 use std::io;
 use std::collections::HashSet;
+use std::thread;
 use socket2::SockAddr;
 use pnet_packet::Packet;
 use pnet_packet::icmp::{IcmpTypes};
@@ -16,6 +17,7 @@ use winapi::shared::ws2def::{AF_INET, AF_INET6, IPPROTO_IP};
 use winapi::um::winsock2::{self as sock, u_long, SOCKET, SOCK_RAW, WSA_FLAG_NO_HANDLE_INHERIT, SOL_SOCKET, SO_RCVTIMEO};
 use winapi::shared::minwindef::DWORD;
 use winapi::um::winbase::{INFINITE};
+use super::{Tracer, TraceStatus, TraceResult};
 use super::BASE_DST_PORT;
 use super::node::{NodeType, Node};
 
@@ -153,8 +155,8 @@ fn recv_from(
     }
 }
 
-pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_timeout: Duration) -> Result<Vec<Node>, String> {
-    let mut result: Vec<Node> = vec![];
+pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
+    let mut nodes: Vec<Node> = vec![];
     let udp_socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
         Err(e) => {
@@ -162,25 +164,36 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
         },
     };
     let socket: SOCKET = 
-    if src_ip.is_ipv4() {
+    if tracer.src_ip.is_ipv4() {
         create_socket(AF_INET, SOCK_RAW, IPPROTO_IP).unwrap()
-    }else if src_ip.is_ipv6(){
+    }else if tracer.src_ip.is_ipv6(){
         create_socket(AF_INET6, SOCK_RAW, IPPROTO_IP).unwrap()
     }else{
         return Err(String::from("invalid source address"));
     };
-    let socket_addr: SocketAddr = SocketAddr::new(src_ip, 0);
+    let socket_addr: SocketAddr = SocketAddr::new(tracer.src_ip, 0);
     //let socket_addr: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
     let sock_addr = SockAddr::from(socket_addr);
     bind(socket, &sock_addr).unwrap();
     //set_nonblocking(socket, true).unwrap();
     set_promiscuous(socket, true).unwrap();
-    set_timeout_opt(socket, SOL_SOCKET, SO_RCVTIMEO, Some(receive_timeout)).unwrap();
+    set_timeout_opt(socket, SOL_SOCKET, SO_RCVTIMEO, Some(tracer.receive_timeout)).unwrap();
     let mut ip_set: HashSet<IpAddr> = HashSet::new();
     let mut end_trace: bool = false;
-    for ttl in 1..max_hop {
+    let start_time = Instant::now();
+    let mut trace_time = Duration::from_millis(0);
+    for ttl in 1..tracer.max_hop {
+        trace_time = Instant::now().duration_since(start_time);
         if end_trace {
             break;
+        }
+        if trace_time > tracer.trace_timeout {
+            let result: TraceResult = TraceResult {
+                nodes: nodes,
+                status: TraceStatus::Timeout,
+                trace_time: trace_time,
+            };
+            return Ok(result);
         }
         match udp_socket.set_ttl(ttl as u32) {
             Ok(_) => (),
@@ -189,7 +202,7 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
             },
         }
         let udp_buf = [0u8; 0];
-        let dst: SocketAddr = SocketAddr::new(dst_ip, BASE_DST_PORT + ttl as u16);
+        let dst: SocketAddr = SocketAddr::new(tracer.dst_ip, BASE_DST_PORT + ttl as u16);
         let send_time = Instant::now();
         let mut buf: Vec<u8> = vec![0; 512];
         let recv_buf = unsafe { &mut *(buf.as_mut_slice() as *mut [u8] as *mut [MaybeUninit<u8>]) };
@@ -200,14 +213,14 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
             },
         }
         loop {
-            let elapsed_time = Instant::now().duration_since(send_time);
-            if elapsed_time > receive_timeout {
+            //let elapsed_time = Instant::now().duration_since(send_time);
+            if Instant::now().duration_since(send_time) > tracer.receive_timeout {
                 break;
             }
             match recv_from(socket, recv_buf, 0) {
                 Ok((bytes_len, addr)) => {
-                    let src_addr: IpAddr = addr.as_socket().unwrap_or(SocketAddr::new(src_ip, 0)).ip();
-                    if src_ip == src_addr || ip_set.contains(&src_addr) {
+                    let src_addr: IpAddr = addr.as_socket().unwrap_or(SocketAddr::new(tracer.src_ip, 0)).ip();
+                    if tracer.src_ip == src_addr || ip_set.contains(&src_addr) {
                         continue;
                     }
                     let recv_time = Instant::now().duration_since(send_time);
@@ -218,7 +231,7 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
                             let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
                             match icmp.get_icmp_type() {
                                 IcmpTypes::TimeExceeded => {
-                                    result.push(Node {
+                                    nodes.push(Node {
                                         ip_addr: ip_addr,
                                         host_name: String::new(),
                                         hop: ttl,
@@ -228,7 +241,7 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
                                     ip_set.insert(ip_addr);
                                 },
                                 IcmpTypes::DestinationUnreachable => {
-                                    result.push(Node {
+                                    nodes.push(Node {
                                         ip_addr: ip_addr,
                                         host_name: String::new(),
                                         hop: ttl,
@@ -246,10 +259,16 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
                 Err(_) => {},
             }
         }   
+        thread::sleep(tracer.send_rate);
     }
-    for node in &mut result {
+    for node in &mut nodes {
         let host_name: String = dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
         node.host_name = host_name;
     }
+    let result: TraceResult = TraceResult {
+        nodes: nodes,
+        status: TraceStatus::Done,
+        trace_time: trace_time,
+    };
     Ok(result)
 } 

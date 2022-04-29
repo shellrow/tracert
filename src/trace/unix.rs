@@ -4,6 +4,7 @@ use socket2::{Domain, Protocol, Socket, Type};
 use std::mem::MaybeUninit;
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::HashSet;
+use std::thread;
 use pnet_packet::Packet;
 use pnet_packet::icmp::IcmpTypes;
 use super::Tracer;
@@ -28,7 +29,11 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<Vec<Node>, String> {
     };
     icmp_socket.set_read_timeout(Some(tracer.receive_timeout)).unwrap();
     let mut ip_set: HashSet<IpAddr> = HashSet::new();
+    let start_time = Instant::now();
     for ttl in 1..tracer.max_hop {
+        if Instant::now().duration_since(start_time) > tracer.trace_timeout {
+            break;
+        }
         match udp_socket.set_ttl(ttl as u32) {
             Ok(_) => (),
             Err(e) => {
@@ -86,6 +91,7 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<Vec<Node>, String> {
             },
             Err(_) => {},
         }
+        thread::sleep(tracer.send_rate);
     }
     for node in &mut result {
         let host_name: String = dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
