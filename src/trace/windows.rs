@@ -5,6 +5,7 @@ use std::mem::{self, size_of, MaybeUninit};
 use std::ptr;
 use std::sync::Once;
 use std::io;
+use std::collections::HashSet;
 use socket2::SockAddr;
 use pnet_packet::Packet;
 use pnet_packet::icmp::{IcmpTypes};
@@ -175,6 +176,7 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
     //set_nonblocking(socket, true).unwrap();
     set_promiscuous(socket, true).unwrap();
     set_timeout_opt(socket, SOL_SOCKET, SO_RCVTIMEO, Some(receive_timeout)).unwrap();
+    let mut ip_set: HashSet<IpAddr> = HashSet::new();
     let mut end_trace: bool = false;
     for ttl in 1..max_hop {
         if end_trace {
@@ -205,7 +207,7 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
             match recv_from(socket, recv_buf, 0) {
                 Ok((bytes_len, addr)) => {
                     let src_addr: IpAddr = addr.as_socket().unwrap_or(SocketAddr::new(src_ip, 0)).ip();
-                    if src_ip == src_addr {
+                    if src_ip == src_addr || ip_set.contains(&src_addr) {
                         continue;
                     }
                     let recv_time = Instant::now().duration_since(send_time);
@@ -214,8 +216,6 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
                         let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
                         if let Some(icmp) = icmp_packet {
                             let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
-
-                            //let host_name: String = dns_lookup::lookup_addr(&ip_addr).unwrap_or(ip_addr.to_string());
                             match icmp.get_icmp_type() {
                                 IcmpTypes::TimeExceeded => {
                                     result.push(Node {
@@ -225,7 +225,7 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
                                         node_type: if ttl == 1 {NodeType::DefaultGateway}else{NodeType::Relay},
                                         rtt: recv_time,
                                     });
-                                    //println!("{} TimeExceeded {:?}", ttl, packet.get_source());
+                                    ip_set.insert(ip_addr);
                                 },
                                 IcmpTypes::DestinationUnreachable => {
                                     result.push(Node {
@@ -235,7 +235,6 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
                                     });
-                                    //println!("{} DestinationUnreachable {:?}", ttl, packet.get_source());
                                     end_trace = true;
                                     break;
                                 },
