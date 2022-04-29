@@ -1,6 +1,7 @@
 use std::net::IpAddr;
 use std::time::Duration;
 
+/// Node type 
 #[derive(Clone, Debug)]
 pub enum NodeType{
     DefaultGateway,
@@ -8,6 +9,7 @@ pub enum NodeType{
     Destination,
 }
 
+/// Node structure
 #[derive(Clone, Debug)]
 pub struct Node {
     pub ip_addr: IpAddr,

@@ -9,11 +9,14 @@ mod windows;
 use self::windows::trace_route;
 
 mod node;
+pub use node::*;
+
 mod tracer;
 pub use tracer::*;
 
 use std::time::Duration;
 
+/// Exit status of traceroute
 #[derive(Clone, Debug)]
 pub enum TraceStatus {
     Done,
@@ -21,6 +24,7 @@ pub enum TraceStatus {
     Timeout,
 }
 
+/// Result of traceroute
 #[derive(Clone, Debug)]
 pub struct TraceResult {
     pub nodes: Vec<node::Node>,

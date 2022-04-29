@@ -4,11 +4,14 @@ use super::TraceResult;
 
 pub(crate) const BASE_DST_PORT: u16 = 33435;
 
+/// Tracer structure
+/// 
+/// Contains various settings for traceroute
 #[derive(Clone, Debug)]
 pub struct Tracer {
-    /// Source IP Address
+    /// Source IP address
     pub src_ip: IpAddr,
-    /// Destination IP Address
+    /// Destination IP address
     pub dst_ip: IpAddr,
     /// Max hop
     pub max_hop: u8,
@@ -49,42 +52,55 @@ impl Tracer {
             },
         }
     }
+    /// Trace route to destination
     pub fn trace(&self) -> Result<TraceResult, String> {
         super::trace_route(self.clone())
     }
+    /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr){
         self.src_ip = src_ip;
     }
+    /// Get source IP address
     pub fn get_src_ip(&self) -> IpAddr {
         self.src_ip
     }
+    /// Set destination IP address
     pub fn set_dst_ip(&mut self, dst_ip: IpAddr){
         self.dst_ip = dst_ip;
     }
+    /// Get destination IP address
     pub fn get_dst_ip(&self) -> IpAddr {
         self.dst_ip
     }
+    /// Set max hop
     pub fn set_max_hop(&mut self, max_hop: u8){
         self.max_hop = max_hop;
     }
+    /// Get max hop
     pub fn get_max_hop(&self) -> u8 {
         self.max_hop
     }
+    /// Set traceroute timeout
     pub fn set_trace_timeout(&mut self, trace_timeout: Duration){
         self.trace_timeout = trace_timeout;
     }
+    /// Get traceroute timeout
     pub fn get_trace_timeout(&self) -> Duration {
         self.trace_timeout
     }
+    /// Set packet receive timeout
     pub fn set_receive_timeout(&mut self, receive_timeout: Duration){
         self.receive_timeout = receive_timeout;
     }
+    /// Get packet receive timeout
     pub fn get_receive_timeout(&self) -> Duration {
         self.receive_timeout
     }
+    /// Set packet send rate
     pub fn set_send_rate(&mut self, send_rate: Duration){
         self.send_rate = send_rate;
     }
+    /// Get packet send rate
     pub fn get_send_rate(&self) -> Duration {
         self.send_rate
     }
