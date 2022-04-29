@@ -7,7 +7,7 @@ use pnet_packet::Packet;
 use pnet_packet::icmp::IcmpTypes;
 use super::node::{NodeType, Node};
 
-pub fn trace_route(dst_ip: IpAddr, max_hop: u8, receive_timeout: Duration) -> Result<Vec<Node>, String> {
+pub fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_timeout: Duration) -> Result<Vec<Node>, String> {
     let mut result: Vec<Node> = vec![];
     let udp_socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
