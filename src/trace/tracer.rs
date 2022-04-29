@@ -2,7 +2,7 @@ use std::net::IpAddr;
 use std::time::Duration;
 use super::node::Node;
 
-pub const BASE_DST_PORT: u16 = 33435;
+pub(crate) const BASE_DST_PORT: u16 = 33435;
 
 #[derive(Clone, Debug)]
 pub struct Tracer {
@@ -18,8 +18,6 @@ pub struct Tracer {
     pub receive_timeout: Duration,
     /// Packet send rate
     pub send_rate: Duration,
-    /// Result of probes  
-    pub trace_result: Vec<Node>,
 }
 
 impl Tracer {
@@ -43,7 +41,6 @@ impl Tracer {
                     trace_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
                     send_rate: Duration::from_millis(1000),
-                    trace_result: vec![],
                 };
                 return Ok(tracer);
             },
@@ -53,6 +50,42 @@ impl Tracer {
         }
     }
     pub fn trace(&self) -> Result<Vec<Node>, String> {
-        super::trace_route(self.src_ip, self.dst_ip, self.max_hop, self.receive_timeout)
+        super::trace_route(self.clone())
+    }
+    pub fn set_src_ip(&mut self, src_ip: IpAddr){
+        self.src_ip = src_ip;
+    }
+    pub fn get_src_ip(&self) -> IpAddr {
+        self.src_ip
+    }
+    pub fn set_dst_ip(&mut self, dst_ip: IpAddr){
+        self.dst_ip = dst_ip;
+    }
+    pub fn get_dst_ip(&self) -> IpAddr {
+        self.dst_ip
+    }
+    pub fn set_max_hop(&mut self, max_hop: u8){
+        self.max_hop = max_hop;
+    }
+    pub fn get_max_hop(&self) -> u8 {
+        self.max_hop
+    }
+    pub fn set_trace_timeout(&mut self, trace_timeout: Duration){
+        self.trace_timeout = trace_timeout;
+    }
+    pub fn get_trace_timeout(&self) -> Duration {
+        self.trace_timeout
+    }
+    pub fn set_receive_timeout(&mut self, receive_timeout: Duration){
+        self.receive_timeout = receive_timeout;
+    }
+    pub fn get_receive_timeout(&self) -> Duration {
+        self.receive_timeout
+    }
+    pub fn set_send_rate(&mut self, send_rate: Duration){
+        self.send_rate = send_rate;
+    }
+    pub fn get_send_rate(&self) -> Duration {
+        self.send_rate
     }
 }
