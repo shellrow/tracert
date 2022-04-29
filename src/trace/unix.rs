@@ -1,5 +1,5 @@
 use std::net::IpAddr;
-use std::time::Instant;
+use std::time::{Instant, Duration};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::mem::MaybeUninit;
 use std::net::{SocketAddr, UdpSocket};
@@ -7,12 +7,12 @@ use std::collections::HashSet;
 use std::thread;
 use pnet_packet::Packet;
 use pnet_packet::icmp::IcmpTypes;
-use super::Tracer;
+use super::{Tracer, TraceStatus, TraceResult};
 use super::node::{NodeType, Node};
 use super::BASE_DST_PORT;
 
-pub(crate) fn trace_route(tracer: Tracer) -> Result<Vec<Node>, String> {
-    let mut result: Vec<Node> = vec![];
+pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
+    let mut nodes: Vec<Node> = vec![];
     let udp_socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
         Err(e) => {
@@ -30,9 +30,16 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<Vec<Node>, String> {
     icmp_socket.set_read_timeout(Some(tracer.receive_timeout)).unwrap();
     let mut ip_set: HashSet<IpAddr> = HashSet::new();
     let start_time = Instant::now();
+    let mut trace_time = Duration::from_millis(0);
     for ttl in 1..tracer.max_hop {
-        if Instant::now().duration_since(start_time) > tracer.trace_timeout {
-            break;
+        trace_time = Instant::now().duration_since(start_time);
+        if trace_time > tracer.trace_timeout {
+            let result: TraceResult = TraceResult {
+                nodes: nodes,
+                status: TraceStatus::Timeout,
+                trace_time: trace_time,
+            };
+            return Ok(result);
         }
         match udp_socket.set_ttl(ttl as u32) {
             Ok(_) => (),
@@ -65,7 +72,7 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<Vec<Node>, String> {
                         let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
                         match icmp.get_icmp_type() {
                             IcmpTypes::TimeExceeded => {
-                                result.push(Node {
+                                nodes.push(Node {
                                     ip_addr: ip_addr,
                                     host_name: String::new(),
                                     hop: ttl,
@@ -75,7 +82,7 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<Vec<Node>, String> {
                                 ip_set.insert(ip_addr);
                             },
                             IcmpTypes::DestinationUnreachable => {
-                                result.push(Node {
+                                nodes.push(Node {
                                     ip_addr: ip_addr,
                                     host_name: String::new(),
                                     hop: ttl,
@@ -93,9 +100,14 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<Vec<Node>, String> {
         }
         thread::sleep(tracer.send_rate);
     }
-    for node in &mut result {
+    for node in &mut nodes {
         let host_name: String = dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
         node.host_name = host_name;
     }
+    let result: TraceResult = TraceResult {
+        nodes: nodes,
+        status: TraceStatus::Done,
+        trace_time: trace_time,
+    };
     Ok(result)
 } 
