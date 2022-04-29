@@ -15,7 +15,6 @@ use winapi::shared::ws2def::{AF_INET, AF_INET6, IPPROTO_IP};
 use winapi::um::winsock2::{self as sock, u_long, SOCKET, SOCK_RAW, WSA_FLAG_NO_HANDLE_INHERIT, SOL_SOCKET, SO_RCVTIMEO};
 use winapi::shared::minwindef::DWORD;
 use winapi::um::winbase::{INFINITE};
-
 use super::BASE_DST_PORT;
 use super::node::{NodeType, Node};
 
@@ -115,7 +114,7 @@ fn into_ms(duration: Option<Duration>) -> DWORD {
         .unwrap_or(0)
 }
 
-pub(crate) fn set_timeout_opt(
+fn set_timeout_opt(
     fd: SOCKET,
     level: c_int,
     optname: c_int,
@@ -153,7 +152,7 @@ fn recv_from(
     }
 }
 
-pub fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_timeout: Duration) -> Result<Vec<Node>, String> {
+pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_timeout: Duration) -> Result<Vec<Node>, String> {
     let mut result: Vec<Node> = vec![];
     let udp_socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
