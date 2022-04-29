@@ -57,7 +57,6 @@ pub(crate) fn trace_route(src_ip: IpAddr, dst_ip: IpAddr, max_hop: u8, receive_t
                     let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
                     if let Some(icmp) = icmp_packet {
                         let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
-                        //let host_name: String = dns_lookup::lookup_addr(&ip_addr).unwrap_or(ip_addr.to_string());
                         match icmp.get_icmp_type() {
                             IcmpTypes::TimeExceeded => {
                                 result.push(Node {
