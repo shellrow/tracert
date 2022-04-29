@@ -239,6 +239,7 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
                                         rtt: recv_time,
                                     });
                                     ip_set.insert(ip_addr);
+                                    break;
                                 },
                                 IcmpTypes::DestinationUnreachable => {
                                     nodes.push(Node {
