@@ -1,6 +1,13 @@
 # tracert
 Cross-platform traceroute library. Written in Rust.
 
+## Usage
+Add tracert to your dependencies
+```
+[dependencies]
+tracert = "0.1.0"
+```
+
 ## Note for Windows users
 You may need to set up firewall rules that allow `ICMP Time-to-live Exceeded` and `ICMP Destination (Port) Unreachable` packets to be received.
 
