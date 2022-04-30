@@ -22,7 +22,7 @@ pub enum PingStatus {
     Timeout,
 }
 
-/// Result of traceroute
+/// Result of ping
 #[derive(Clone, Debug)]
 pub struct PingResult {
     pub results: Vec<Node>,
