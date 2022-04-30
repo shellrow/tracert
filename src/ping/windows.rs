@@ -155,10 +155,8 @@ fn udp_ping(pinger: Pinger) -> Result<PingResult, String> {
         return Err(String::from("invalid source address"));
     };
     let socket_addr: SocketAddr = SocketAddr::new(pinger.src_ip, 0);
-    //let socket_addr: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
     let sock_addr = SockAddr::from(socket_addr);
     sys::bind(socket, &sock_addr).unwrap();
-    //sys::set_nonblocking(socket, true).unwrap();
     sys::set_promiscuous(socket, true).unwrap();
     sys::set_timeout_opt(socket, SOL_SOCKET, SO_RCVTIMEO, Some(pinger.receive_timeout)).unwrap();
     let start_time = Instant::now();
@@ -173,7 +171,7 @@ fn udp_ping(pinger: Pinger) -> Result<PingResult, String> {
             };
             return Ok(result);
         }
-        match udp_socket.set_ttl(64) {
+        match udp_socket.set_ttl(pinger.ttl as u32) {
             Ok(_) => (),
             Err(e) => {
                 return Err(format!("{}", e));
