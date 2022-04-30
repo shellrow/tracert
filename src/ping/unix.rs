@@ -181,12 +181,12 @@ fn udp_ping(pinger: Pinger) -> Result<PingResult, String> {
             },
         }
         loop{
+            if Instant::now().duration_since(send_time) > pinger.receive_timeout {
+                break;
+            }
             match icmp_socket.recv_from(&mut recv_buf) {
                 Ok((bytes_len, _addr)) => {
                     let recv_time = Instant::now().duration_since(send_time);
-                    if recv_time > pinger.receive_timeout {
-                        break;
-                    }
                     let recv_buf = unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
                     if let Some(packet) = pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len]){
                         let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
