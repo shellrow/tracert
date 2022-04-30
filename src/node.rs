@@ -12,9 +12,10 @@ pub enum NodeType{
 /// Node structure
 #[derive(Clone, Debug)]
 pub struct Node {
+    pub seq: u8,
     pub ip_addr: IpAddr,
     pub host_name: String,
-    pub hop: u8,
+    pub hop: Option<u8>,
     pub node_type: NodeType,
     pub rtt: Duration,
 }

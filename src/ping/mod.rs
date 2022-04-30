@@ -1,22 +1,22 @@
 #[cfg(not(target_os="windows"))]
 mod unix;
 #[cfg(not(target_os="windows"))]
-use unix::trace_route;
+use unix::ping;
 
 #[cfg(target_os="windows")]
 mod windows;
-#[cfg(target_os="windows")]
-use self::windows::trace_route;
+//#[cfg(target_os="windows")]
+//use self::windows::trace_route;
 
-mod tracer;
-pub use tracer::*;
+mod pinger;
+pub use pinger::*;
 
 use std::time::Duration;
 use crate::node::Node;
 
-/// Exit status of traceroute
+/// Exit status of ping
 #[derive(Clone, Debug)]
-pub enum TraceStatus {
+pub enum PingStatus {
     Done,
     Error,
     Timeout,
@@ -24,8 +24,8 @@ pub enum TraceStatus {
 
 /// Result of traceroute
 #[derive(Clone, Debug)]
-pub struct TraceResult {
-    pub nodes: Vec<Node>,
-    pub status: TraceStatus,
+pub struct PingResult {
+    pub results: Vec<Node>,
+    pub status: PingStatus,
     pub probe_time: Duration,
 }
