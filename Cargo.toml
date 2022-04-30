@@ -1,9 +1,9 @@
 [package]
 name = "tracert"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["shellrow <shellrow@protonmail.com>"]
-description = "Cross-platform traceroute library"
+description = "Cross-platform traceroute and ping library"
 repository = "https://github.com/shellrow/tracert"
 readme = "README.md"
 keywords = ["network"]
