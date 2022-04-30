@@ -24,6 +24,7 @@ pub struct Tracer {
 }
 
 impl Tracer {
+    /// Create new Tracer instance with destination IP address
     pub fn new(dst_ip: IpAddr) -> Result<Tracer, String> {
         match default_net::get_default_interface(){
             Ok(interface) => {

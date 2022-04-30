@@ -12,7 +12,7 @@ pub struct Pinger {
     pub src_ip: IpAddr,
     /// Destination IP address
     pub dst_ip: IpAddr,
-    /// dst port 
+    /// Destination port 
     pub dst_port: u16,
     /// Protocol used for PING
     pub protocol: Protocol,
@@ -33,6 +33,7 @@ pub struct Pinger {
 }
 
 impl Pinger {
+    /// Create new Pinger instance with destination IP address
     pub fn new(dst_ip: IpAddr) -> Result<Pinger, String> {
         match default_net::get_default_interface(){
             Ok(interface) => {
@@ -100,19 +101,19 @@ impl Pinger {
     pub fn get_protocol(&self) -> Protocol {
         self.protocol.clone()
     }
-    /// Set TTL
+    /// Set Time to live
     pub fn set_ttl(&mut self, ttl: u8){
         self.ttl = ttl;
     }
-    /// Get TTL
+    /// Get Time to live
     pub fn get_ttl(&self) -> u8 {
         self.ttl
     }
-    /// Set count
+    /// Set ping execution count
     pub fn set_count(&mut self, count: u8){
         self.ttl = count;
     }
-    /// Get count
+    /// Get ping execution count
     pub fn get_count(&self) -> u8 {
         self.count
     }
