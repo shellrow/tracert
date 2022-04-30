@@ -5,8 +5,8 @@ use unix::ping;
 
 #[cfg(target_os="windows")]
 mod windows;
-//#[cfg(target_os="windows")]
-//use self::windows::trace_route;
+#[cfg(target_os="windows")]
+use self::windows::ping;
 
 mod pinger;
 pub use pinger::*;

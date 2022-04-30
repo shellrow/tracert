@@ -19,7 +19,7 @@ use winapi::shared::minwindef::DWORD;
 use winapi::um::winbase::{INFINITE};
 use super::{Tracer, TraceStatus, TraceResult};
 use super::BASE_DST_PORT;
-use super::node::{NodeType, Node};
+use crate::node::{NodeType, Node};
 
 //const BASE_DST_PORT: u16 = 33435;
 const NO_INHERIT: c_int = 1 << ((size_of::<c_int>() * 8) - 1);
@@ -191,7 +191,7 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
             let result: TraceResult = TraceResult {
                 nodes: nodes,
                 status: TraceStatus::Timeout,
-                trace_time: trace_time,
+                probe_time: trace_time,
             };
             return Ok(result);
         }
@@ -232,9 +232,10 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
                             match icmp.get_icmp_type() {
                                 IcmpTypes::TimeExceeded => {
                                     nodes.push(Node {
+                                        seq: ttl,
                                         ip_addr: ip_addr,
                                         host_name: String::new(),
-                                        hop: ttl,
+                                        hop: Some(ttl),
                                         node_type: if ttl == 1 {NodeType::DefaultGateway}else{NodeType::Relay},
                                         rtt: recv_time,
                                     });
@@ -243,9 +244,10 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
                                 },
                                 IcmpTypes::DestinationUnreachable => {
                                     nodes.push(Node {
+                                        seq: ttl,
                                         ip_addr: ip_addr,
                                         host_name: String::new(),
-                                        hop: ttl,
+                                        hop: Some(ttl),
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
                                     });
@@ -269,7 +271,7 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
     let result: TraceResult = TraceResult {
         nodes: nodes,
         status: TraceStatus::Done,
-        trace_time: trace_time,
+        probe_time: trace_time,
     };
     Ok(result)
 } 
