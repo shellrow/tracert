@@ -4,7 +4,7 @@
 [tracert-url]: https://github.com/shellrow/tracert
 
 # tracert [![Crates.io][crates-badge]][crates-url] ![License][license-badge]
-Cross-platform traceroute and ping library. Written in Rust.
+Cross-platform library for traceroute and ping. Written in Rust.
 
 ## Features
 - traceroute
