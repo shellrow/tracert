@@ -30,10 +30,8 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
         return Err(String::from("invalid source address"));
     };
     let socket_addr: SocketAddr = SocketAddr::new(tracer.src_ip, 0);
-    //let socket_addr: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
     let sock_addr = SockAddr::from(socket_addr);
     sys::bind(socket, &sock_addr).unwrap();
-    //set_nonblocking(socket, true).unwrap();
     sys::set_promiscuous(socket, true).unwrap();
     sys::set_timeout_opt(socket, SOL_SOCKET, SO_RCVTIMEO, Some(tracer.receive_timeout)).unwrap();
     let mut ip_set: HashSet<IpAddr> = HashSet::new();
@@ -71,7 +69,6 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
             },
         }
         loop {
-            //let elapsed_time = Instant::now().duration_since(send_time);
             if Instant::now().duration_since(send_time) > tracer.receive_timeout {
                 break;
             }
