@@ -1,11 +1,25 @@
-# tracert
-Cross-platform traceroute library. Written in Rust.
+[crates-badge]: https://img.shields.io/crates/v/tracert.svg
+[crates-url]: https://crates.io/crates/tracert
+[license-badge]: https://img.shields.io/crates/l/tracert.svg
+[tracert-url]: https://github.com/shellrow/tracert
+
+# tracert [![Crates.io][crates-badge]][crates-url] ![License][license-badge]
+Cross-platform traceroute and ping library. Written in Rust.
+
+## Features
+- traceroute
+    - [x] UDP
+- ping
+    - [x] ICMPv4
+    - [ ] ICMPv6
+    - [x] UDP
+    - [x] TCP
 
 ## Usage
-Add tracert to your dependencies
+Add `tracert` to your dependencies
 ```
 [dependencies]
-tracert = "0.1.0"
+tracert = "0.2.0"
 ```
 
 ## Note for Windows users
