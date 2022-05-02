@@ -14,7 +14,7 @@ fn main() {
     // Print progress
     println!("Progress:");
     while let Ok(msg) = rx.lock().unwrap().recv() {
-        println!("{} {} {:?}", msg.seq, msg.ip_addr, msg.rtt);
+        println!("{} {} {:?} {:?}", msg.seq, msg.ip_addr, msg.hop, msg.rtt);
     }
     // Print final result
     println!("Result:");
