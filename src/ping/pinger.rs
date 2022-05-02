@@ -1,7 +1,10 @@
 use std::net::IpAddr;
 use std::time::Duration;
+use std::sync::{Mutex, Arc};
+use std::sync::mpsc::{channel ,Sender, Receiver};
 use super::PingResult;
 use crate::protocol::Protocol;
+use crate::node::Node;
 
 /// Pinger structure
 /// 
@@ -30,6 +33,10 @@ pub struct Pinger {
     pub receive_timeout: Duration,
     /// Packet send rate
     pub send_rate: Duration,
+    /// Sender for progress messaging
+    pub tx: Arc<Mutex<Sender<Node>>>,
+    /// Receiver for progress messaging
+    pub rx: Arc<Mutex<Receiver<Node>>>,
 }
 
 impl Pinger {
@@ -47,6 +54,7 @@ impl Pinger {
                         return Err(String::from("Failed to get default interface"));
                     }
                 };
+                let (tx, rx) = channel();
                 let pinger = Pinger {
                     src_ip: src_ip,
                     dst_ip: dst_ip,
@@ -57,6 +65,8 @@ impl Pinger {
                     ping_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
                     send_rate: Duration::from_millis(1000),
+                    tx: Arc::new(Mutex::new(tx)),
+                    rx: Arc::new(Mutex::new(rx)),
                 };
                 return Ok(pinger);
             },
@@ -67,7 +77,7 @@ impl Pinger {
     }
     /// Run ping
     pub fn ping(&self) -> Result<PingResult, String> {
-        super::ping(self.clone())
+        super::ping(self.clone(), &self.tx)
     }
     /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr){
