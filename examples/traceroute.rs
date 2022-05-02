@@ -6,7 +6,7 @@ fn main() {
     // UDP traceroute to scanme.nmap.org (45.33.32.156)
     let dst_ip: IpAddr = IpAddr::V4(Ipv4Addr::new(45, 33, 32, 156));
     let tracer: Tracer = Tracer::new(dst_ip).unwrap();
-    let rx = tracer.rx.clone();
+    let rx = tracer.get_progress_receiver();
     // Run trace
     let handle = thread::spawn(move|| {
         tracer.trace()

@@ -115,4 +115,8 @@ impl Tracer {
     pub fn get_send_rate(&self) -> Duration {
         self.send_rate
     }
+    /// Get progress receiver
+    pub fn get_progress_receiver(&self) -> Arc<Mutex<Receiver<Node>>> {
+        self.rx.clone()
+    }
 }
