@@ -1,6 +1,9 @@
 use std::net::IpAddr;
 use std::time::Duration;
+use std::sync::{Mutex, Arc};
+use std::sync::mpsc::{channel ,Sender, Receiver};
 use super::TraceResult;
+use crate::node::Node;
 
 pub(crate) const BASE_DST_PORT: u16 = 33435;
 
@@ -21,6 +24,10 @@ pub struct Tracer {
     pub receive_timeout: Duration,
     /// Packet send rate
     pub send_rate: Duration,
+    /// Sender for progress messaging
+    pub tx: Arc<Mutex<Sender<Node>>>,
+    /// Receiver for progress messaging
+    pub rx: Arc<Mutex<Receiver<Node>>>,
 }
 
 impl Tracer {
@@ -38,6 +45,7 @@ impl Tracer {
                         return Err(String::from("Failed to get default interface"));
                     }
                 };
+                let (tx, rx) = channel();
                 let tracer = Tracer {
                     src_ip: src_ip,
                     dst_ip: dst_ip,
@@ -45,6 +53,8 @@ impl Tracer {
                     trace_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
                     send_rate: Duration::from_millis(0),
+                    tx: Arc::new(Mutex::new(tx)),
+                    rx: Arc::new(Mutex::new(rx)),
                 };
                 return Ok(tracer);
             },
@@ -55,7 +65,7 @@ impl Tracer {
     }
     /// Trace route to destination
     pub fn trace(&self) -> Result<TraceResult, String> {
-        super::trace_route(self.clone())
+        super::trace_route(self.clone(), &self.tx)
     }
     /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr){

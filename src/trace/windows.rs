@@ -3,6 +3,8 @@ use std::time::{Duration, Instant};
 use std::mem::MaybeUninit;
 use std::collections::HashSet;
 use std::thread;
+use std::sync::{Mutex, Arc};
+use std::sync::mpsc::Sender;
 use socket2::SockAddr;
 use pnet_packet::Packet;
 use pnet_packet::icmp::{IcmpTypes};
@@ -13,7 +15,7 @@ use super::BASE_DST_PORT;
 use crate::node::{NodeType, Node};
 use crate::sys;
 
-pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
+pub(crate) fn trace_route(tracer: Tracer, tx: &Arc<Mutex<Sender<Node>>>) -> Result<TraceResult, String> {
     let mut nodes: Vec<Node> = vec![];
     let udp_socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
@@ -86,26 +88,30 @@ pub(crate) fn trace_route(tracer: Tracer) -> Result<TraceResult, String> {
                             let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
                             match icmp.get_icmp_type() {
                                 IcmpTypes::TimeExceeded => {
-                                    nodes.push(Node {
+                                    let node = Node {
                                         seq: ttl,
                                         ip_addr: ip_addr,
                                         host_name: String::new(),
                                         hop: Some(ttl),
                                         node_type: if ttl == 1 {NodeType::DefaultGateway}else{NodeType::Relay},
                                         rtt: recv_time,
-                                    });
+                                    };
+                                    nodes.push(node.clone());
+                                    tx.lock().unwrap().send(node).unwrap();
                                     ip_set.insert(ip_addr);
                                     break;
                                 },
                                 IcmpTypes::DestinationUnreachable => {
-                                    nodes.push(Node {
+                                    let node = Node {
                                         seq: ttl,
                                         ip_addr: ip_addr,
                                         host_name: String::new(),
                                         hop: Some(ttl),
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
-                                    });
+                                    };
+                                    nodes.push(node.clone());
+                                    tx.lock().unwrap().send(node).unwrap();
                                     end_trace = true;
                                     break;
                                 },
