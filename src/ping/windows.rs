@@ -9,10 +9,9 @@ use pnet_packet::Packet;
 use pnet_packet::icmp::IcmpTypes;
 use winapi::shared::ws2def::{AF_INET, AF_INET6, IPPROTO_IP};
 use winapi::um::winsock2::{SOCKET, SOCK_RAW, SOL_SOCKET, SO_RCVTIMEO};
-
+use super::{Pinger, PingStatus, PingResult};
 use crate::node::{NodeType, Node};
 use crate::packet;
-use super::{Pinger, PingStatus, PingResult};
 use crate::protocol::Protocol as ProbeProtocol;
 use crate::trace::BASE_DST_PORT;
 use crate::sys;
@@ -75,7 +74,15 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                                         rtt: recv_time,
                                     };
                                     results.push(node.clone());
-                                    tx.lock().unwrap().send(node).unwrap();
+                                    match tx.lock() {
+                                        Ok(lr) => {
+                                            match lr.send(node) {
+                                                Ok(_) => {},
+                                                Err(_) => {},
+                                            }
+                                        },
+                                        Err(_) => {},
+                                    }
                                     break;
                                 },
                                 _ => {},
@@ -127,7 +134,15 @@ fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                     rtt: connect_end_time,
                 };
                 results.push(node.clone());
-                tx.lock().unwrap().send(node).unwrap();
+                match tx.lock() {
+                    Ok(lr) => {
+                        match lr.send(node) {
+                            Ok(_) => {},
+                            Err(_) => {},
+                        }
+                    },
+                    Err(_) => {},
+                }
             },
             Err(e) => {
                 println!("{}", e);
@@ -221,7 +236,15 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                                         rtt: recv_time,
                                     };
                                     results.push(node.clone());
-                                    tx.lock().unwrap().send(node).unwrap();
+                                    match tx.lock() {
+                                        Ok(lr) => {
+                                            match lr.send(node) {
+                                                Ok(_) => {},
+                                                Err(_) => {},
+                                            }
+                                        },
+                                        Err(_) => {},
+                                    }
                                     break;
                                 },
                                 _ => {},

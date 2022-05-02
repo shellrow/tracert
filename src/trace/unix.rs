@@ -83,7 +83,15 @@ pub(crate) fn trace_route(tracer: Tracer, tx: &Arc<Mutex<Sender<Node>>>) -> Resu
                                     rtt: recv_time,
                                 };
                                 nodes.push(node.clone());
-                                tx.lock().unwrap().send(node).unwrap();
+                                match tx.lock() {
+                                    Ok(lr) => {
+                                        match lr.send(node) {
+                                            Ok(_) => {},
+                                            Err(_) => {},
+                                        }
+                                    },
+                                    Err(_) => {},
+                                }
                                 ip_set.insert(ip_addr);
                             },
                             IcmpTypes::DestinationUnreachable => {
@@ -96,7 +104,15 @@ pub(crate) fn trace_route(tracer: Tracer, tx: &Arc<Mutex<Sender<Node>>>) -> Resu
                                     rtt: recv_time,
                                 };
                                 nodes.push(node.clone());
-                                tx.lock().unwrap().send(node).unwrap();
+                                match tx.lock() {
+                                    Ok(lr) => {
+                                        match lr.send(node) {
+                                            Ok(_) => {},
+                                            Err(_) => {},
+                                        }
+                                    },
+                                    Err(_) => {},
+                                }
                                 break;
                             },
                             _ => {},
