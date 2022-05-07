@@ -12,6 +12,7 @@ use crate::packet;
 use super::{Pinger, PingStatus, PingResult};
 use crate::protocol::Protocol as ProbeProtocol;
 use crate::trace::BASE_DST_PORT;
+use crate::sys;
 
 fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
     let host_name: String = dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
@@ -66,7 +67,7 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                                         seq: seq,
                                         ip_addr: ip_addr,
                                         host_name: host_name.clone(),
-                                        hop: Some(pinger.ttl - packet.get_ttl()),
+                                        hop: Some(sys::guess_initial_ttl(packet.get_ttl()) - packet.get_ttl()),
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
                                     };
@@ -220,7 +221,7 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                                         seq: seq,
                                         ip_addr: ip_addr,
                                         host_name: host_name.clone(),
-                                        hop: Some(pinger.ttl - packet.get_ttl()),
+                                        hop: Some(sys::guess_initial_ttl(packet.get_ttl()) - packet.get_ttl()),
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
                                     };
