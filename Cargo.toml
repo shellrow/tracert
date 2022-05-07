@@ -14,7 +14,7 @@ license = "MIT"
 socket2 = { version = "0.4.4", features = ["all"] }
 pnet_packet = "0.29.0"
 dns-lookup = "1.0"
-default-net = "0.9.0"
+default-net = "0.11.0"
 rand = "0.8.5"
 
 [target.'cfg(windows)'.dependencies]
