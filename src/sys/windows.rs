@@ -1,17 +1,17 @@
-use std::time::Duration;
-use std::net::UdpSocket;
-use std::mem::{self, size_of, MaybeUninit};
 use socket2::SockAddr;
 use std::cmp::min;
+use std::io;
+use std::mem::{self, size_of, MaybeUninit};
+use std::net::UdpSocket;
 use std::ptr;
 use std::sync::Once;
-use std::io;
+use std::time::Duration;
 use winapi::ctypes::c_int;
 use winapi::ctypes::c_long;
-use winapi::shared::mstcpip::SIO_RCVALL;
-use winapi::um::winsock2::{self as sock, u_long, SOCKET, WSA_FLAG_NO_HANDLE_INHERIT};
 use winapi::shared::minwindef::DWORD;
-use winapi::um::winbase::{INFINITE};
+use winapi::shared::mstcpip::SIO_RCVALL;
+use winapi::um::winbase::INFINITE;
+use winapi::um::winsock2::{self as sock, u_long, SOCKET, WSA_FLAG_NO_HANDLE_INHERIT};
 
 pub(crate) const NO_INHERIT: c_int = 1 << ((size_of::<c_int>() * 8) - 1);
 pub(crate) const MAX_BUF_LEN: usize = <c_int>::max_value() as usize;

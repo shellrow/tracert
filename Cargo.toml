@@ -6,7 +6,7 @@ authors = ["shellrow <shellrow@protonmail.com>"]
 description = "Cross-platform library for traceroute and ping"
 repository = "https://github.com/shellrow/tracert"
 readme = "README.md"
-keywords = ["network"]
+keywords = ["network", "tracetoute", "ping"]
 categories = ["network-programming"]
 license = "MIT"
 
