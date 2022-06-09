@@ -1,7 +1,7 @@
 use socket2::SockAddr;
 use std::cmp::min;
 use std::io;
-use std::mem::{self, size_of, MaybeUninit};
+use std::mem::{self, MaybeUninit};
 use std::net::UdpSocket;
 use std::ptr;
 use std::sync::Once;
@@ -13,7 +13,7 @@ use winapi::shared::mstcpip::SIO_RCVALL;
 use winapi::um::winbase::INFINITE;
 use winapi::um::winsock2::{self as sock, u_long, SOCKET, WSA_FLAG_NO_HANDLE_INHERIT};
 
-pub(crate) const NO_INHERIT: c_int = 1 << ((size_of::<c_int>() * 8) - 1);
+pub(crate) const NO_INHERIT: c_int = 1 << (c_int::BITS - 1);
 pub(crate) const MAX_BUF_LEN: usize = <c_int>::max_value() as usize;
 
 #[allow(unused_macros)]

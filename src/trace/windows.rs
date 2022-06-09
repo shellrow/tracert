@@ -55,7 +55,7 @@ pub(crate) fn trace_route(
         }
         if trace_time > tracer.trace_timeout {
             let result: TraceResult = TraceResult {
-                nodes: nodes,
+                nodes,
                 status: TraceStatus::Timeout,
                 probe_time: trace_time,
             };
@@ -82,86 +82,72 @@ pub(crate) fn trace_route(
             if Instant::now().duration_since(send_time) > tracer.receive_timeout {
                 break;
             }
-            match sys::recv_from(socket, recv_buf, 0) {
-                Ok((bytes_len, addr)) => {
-                    let src_addr: IpAddr = addr
-                        .as_socket()
-                        .unwrap_or(SocketAddr::new(tracer.src_ip, 0))
-                        .ip();
-                    if tracer.src_ip == src_addr || ip_set.contains(&src_addr) {
-                        continue;
-                    }
-                    let recv_time = Instant::now().duration_since(send_time);
-                    let recv_buf =
-                        unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
-                    if let Some(packet) =
-                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
-                    {
-                        let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
-                        if let Some(icmp) = icmp_packet {
-                            let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
-                            match icmp.get_icmp_type() {
-                                IcmpTypes::TimeExceeded => {
-                                    let node = Node {
-                                        seq: ttl,
-                                        ip_addr: ip_addr,
-                                        host_name: String::new(),
-                                        hop: Some(ttl),
-                                        node_type: if ttl == 1 {
-                                            NodeType::DefaultGateway
-                                        } else {
-                                            NodeType::Relay
-                                        },
-                                        rtt: recv_time,
-                                    };
-                                    nodes.push(node.clone());
-                                    match tx.lock() {
-                                        Ok(lr) => match lr.send(node) {
-                                            Ok(_) => {}
-                                            Err(_) => {}
-                                        },
-                                        Err(_) => {}
-                                    }
-                                    ip_set.insert(ip_addr);
-                                    break;
+            if let Ok((bytes_len, addr)) = sys::recv_from(socket, recv_buf, 0) {
+                let src_addr: IpAddr = addr
+                    .as_socket()
+                    .unwrap_or_else(|| SocketAddr::new(tracer.src_ip, 0))
+                    .ip();
+                if tracer.src_ip == src_addr || ip_set.contains(&src_addr) {
+                    continue;
+                }
+                let recv_time = Instant::now().duration_since(send_time);
+                let recv_buf = unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
+                if let Some(packet) = pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len]) {
+                    let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
+                    if let Some(icmp) = icmp_packet {
+                        let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
+                        match icmp.get_icmp_type() {
+                            IcmpTypes::TimeExceeded => {
+                                let node = Node {
+                                    seq: ttl,
+                                    ip_addr,
+                                    host_name: String::new(),
+                                    hop: Some(ttl),
+                                    node_type: if ttl == 1 {
+                                        NodeType::DefaultGateway
+                                    } else {
+                                        NodeType::Relay
+                                    },
+                                    rtt: recv_time,
+                                };
+                                nodes.push(node.clone());
+                                if let Ok(lr) = tx.lock() {
+                                    if lr.send(node).is_ok() {}
                                 }
-                                IcmpTypes::DestinationUnreachable => {
-                                    let node = Node {
-                                        seq: ttl,
-                                        ip_addr: ip_addr,
-                                        host_name: String::new(),
-                                        hop: Some(ttl),
-                                        node_type: NodeType::Destination,
-                                        rtt: recv_time,
-                                    };
-                                    nodes.push(node.clone());
-                                    match tx.lock() {
-                                        Ok(lr) => match lr.send(node) {
-                                            Ok(_) => {}
-                                            Err(_) => {}
-                                        },
-                                        Err(_) => {}
-                                    }
-                                    end_trace = true;
-                                    break;
-                                }
-                                _ => {}
+                                ip_set.insert(ip_addr);
+                                break;
                             }
+                            IcmpTypes::DestinationUnreachable => {
+                                let node = Node {
+                                    seq: ttl,
+                                    ip_addr,
+                                    host_name: String::new(),
+                                    hop: Some(ttl),
+                                    node_type: NodeType::Destination,
+                                    rtt: recv_time,
+                                };
+                                nodes.push(node.clone());
+                                if let Ok(lr) = tx.lock() {
+                                    if lr.send(node).is_ok() {}
+                                }
+                                end_trace = true;
+                                break;
+                            }
+                            _ => {}
                         }
                     }
                 }
-                Err(_) => {}
             }
         }
         thread::sleep(tracer.send_rate);
     }
     for node in &mut nodes {
         let host_name: String =
-            dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
+            dns_lookup::lookup_addr(&node.ip_addr).unwrap_or_else(|_| node.ip_addr.to_string());
         node.host_name = host_name;
     }
     let result: TraceResult = TraceResult {
-        nodes: nodes,
+        nodes,
         status: TraceStatus::Done,
         probe_time: trace_time,
     };

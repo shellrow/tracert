@@ -18,7 +18,7 @@ use winapi::um::winsock2::{SOCKET, SOCK_RAW, SOL_SOCKET, SO_RCVTIMEO};
 
 fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
     let host_name: String =
-        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
+        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
     let icmp_socket: Socket = if pinger.src_ip.is_ipv4() {
         Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).unwrap()
@@ -33,71 +33,53 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
     icmp_socket.set_ttl(pinger.ttl as u32).unwrap();
     let socket_addr = SocketAddr::new(pinger.dst_ip, 0);
     let sock_addr = SockAddr::from(socket_addr);
-    let mut icmp_packet: Vec<u8> = packet::build_icmpv4_echo_packet();
+    let icmp_packet: Vec<u8> = packet::build_icmpv4_echo_packet();
     let start_time = Instant::now();
     let mut probe_time = Duration::from_millis(0);
     for seq in 1..pinger.count + 1 {
         probe_time = Instant::now().duration_since(start_time);
         if probe_time > pinger.ping_timeout {
             let result: PingResult = PingResult {
-                results: results,
+                results,
                 status: PingStatus::Timeout,
-                probe_time: probe_time,
+                probe_time,
             };
             return Ok(result);
         }
         let mut buf: Vec<u8> = vec![0; 512];
-        let mut recv_buf =
-            unsafe { &mut *(buf.as_mut_slice() as *mut [u8] as *mut [MaybeUninit<u8>]) };
+        let recv_buf = unsafe { &mut *(buf.as_mut_slice() as *mut [u8] as *mut [MaybeUninit<u8>]) };
         let send_time = Instant::now();
-        match icmp_socket.send_to(&mut icmp_packet, &sock_addr) {
-            Ok(_) => {}
-            Err(_) => {}
-        }
+        if icmp_socket.send_to(&icmp_packet, &sock_addr).is_ok() {}
         loop {
-            match icmp_socket.recv_from(&mut recv_buf) {
-                Ok((bytes_len, _addr)) => {
-                    let recv_time = Instant::now().duration_since(send_time);
-                    if recv_time > pinger.receive_timeout {
-                        break;
-                    }
-                    let recv_buf =
-                        unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
-                    if let Some(packet) =
-                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
-                    {
-                        let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
-                        if let Some(icmp) = icmp_packet {
-                            let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
-                            match icmp.get_icmp_type() {
-                                IcmpTypes::EchoReply => {
-                                    let node = Node {
-                                        seq,
-                                        ip_addr,
-                                        host_name: host_name.clone(),
-                                        hop: Some(
-                                            sys::guess_initial_ttl(packet.get_ttl())
-                                                - packet.get_ttl(),
-                                        ),
-                                        node_type: NodeType::Destination,
-                                        rtt: recv_time,
-                                    };
-                                    results.push(node.clone());
-                                    match tx.lock() {
-                                        Ok(lr) => match lr.send(node) {
-                                            Ok(_) => {}
-                                            Err(_) => {}
-                                        },
-                                        Err(_) => {}
-                                    }
-                                    break;
-                                }
-                                _ => {}
+            if let Ok((bytes_len, _addr)) = icmp_socket.recv_from(recv_buf) {
+                let recv_time = Instant::now().duration_since(send_time);
+                if recv_time > pinger.receive_timeout {
+                    break;
+                }
+                let recv_buf = unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
+                if let Some(packet) = pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len]) {
+                    let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
+                    if let Some(icmp) = icmp_packet {
+                        let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
+                        if icmp.get_icmp_type() == IcmpTypes::EchoReply {
+                            let node = Node {
+                                seq,
+                                ip_addr,
+                                host_name: host_name.clone(),
+                                hop: Some(
+                                    sys::guess_initial_ttl(packet.get_ttl()) - packet.get_ttl(),
+                                ),
+                                node_type: NodeType::Destination,
+                                rtt: recv_time,
+                            };
+                            results.push(node.clone());
+                            if let Ok(lr) = tx.lock() {
+                                if lr.send(node).is_ok() {}
                             }
+                            break;
                         }
                     }
                 }
-                Err(_) => {}
             }
         }
         thread::sleep(pinger.send_rate);
@@ -112,7 +94,7 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
 
 fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
     let host_name: String =
-        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
+        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
     let socket_addr: SocketAddr = SocketAddr::new(pinger.dst_ip, pinger.dst_port);
     let sock_addr = SockAddr::from(socket_addr);
@@ -134,7 +116,7 @@ fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
             Ok(_) => {
                 let connect_end_time = Instant::now().duration_since(connect_start_time);
                 let node = Node {
-                    seq: seq,
+                    seq,
                     ip_addr: pinger.dst_ip,
                     host_name: host_name.clone(),
                     hop: None,
@@ -142,12 +124,8 @@ fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                     rtt: connect_end_time,
                 };
                 results.push(node.clone());
-                match tx.lock() {
-                    Ok(lr) => match lr.send(node) {
-                        Ok(_) => {}
-                        Err(_) => {}
-                    },
-                    Err(_) => {}
+                if let Ok(lr) = tx.lock() {
+                    if lr.send(node).is_ok() {}
                 }
             }
             Err(e) => {
@@ -166,7 +144,7 @@ fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
 
 fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
     let host_name: String =
-        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
+        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
     let udp_socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
@@ -225,53 +203,39 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
             if Instant::now().duration_since(send_time) > pinger.receive_timeout {
                 break;
             }
-            match sys::recv_from(socket, recv_buf, 0) {
-                Ok((bytes_len, addr)) => {
-                    let src_addr: IpAddr = addr
-                        .as_socket()
-                        .unwrap_or(SocketAddr::new(pinger.src_ip, 0))
-                        .ip();
-                    if pinger.src_ip == src_addr {
-                        continue;
-                    }
-                    let recv_time = Instant::now().duration_since(send_time);
-                    let recv_buf =
-                        unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
-                    if let Some(packet) =
-                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
-                    {
-                        let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
-                        if let Some(icmp) = icmp_packet {
-                            let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
-                            match icmp.get_icmp_type() {
-                                IcmpTypes::DestinationUnreachable => {
-                                    let node = Node {
-                                        seq,
-                                        ip_addr,
-                                        host_name: host_name.clone(),
-                                        hop: Some(
-                                            sys::guess_initial_ttl(packet.get_ttl())
-                                                - packet.get_ttl(),
-                                        ),
-                                        node_type: NodeType::Destination,
-                                        rtt: recv_time,
-                                    };
-                                    results.push(node.clone());
-                                    match tx.lock() {
-                                        Ok(lr) => match lr.send(node) {
-                                            Ok(_) => {}
-                                            Err(_) => {}
-                                        },
-                                        Err(_) => {}
-                                    }
-                                    break;
-                                }
-                                _ => {}
+            if let Ok((bytes_len, addr)) = sys::recv_from(socket, recv_buf, 0) {
+                let src_addr: IpAddr = addr
+                    .as_socket()
+                    .unwrap_or_else(|| SocketAddr::new(pinger.src_ip, 0))
+                    .ip();
+                if pinger.src_ip == src_addr {
+                    continue;
+                }
+                let recv_time = Instant::now().duration_since(send_time);
+                let recv_buf = unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
+                if let Some(packet) = pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len]) {
+                    let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
+                    if let Some(icmp) = icmp_packet {
+                        let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
+                        if icmp.get_icmp_type() == IcmpTypes::DestinationUnreachable {
+                            let node = Node {
+                                seq,
+                                ip_addr,
+                                host_name: host_name.clone(),
+                                hop: Some(
+                                    sys::guess_initial_ttl(packet.get_ttl()) - packet.get_ttl(),
+                                ),
+                                node_type: NodeType::Destination,
+                                rtt: recv_time,
+                            };
+                            results.push(node.clone());
+                            if let Ok(lr) = tx.lock() {
+                                if lr.send(node).is_ok() {}
                             }
-                        }
+                            break;
+                        };
                     }
                 }
-                Err(_) => {}
             }
         }
         thread::sleep(pinger.send_rate);
