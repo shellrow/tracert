@@ -6,12 +6,26 @@ use std::net::UdpSocket;
 use std::ptr;
 use std::sync::Once;
 use std::time::Duration;
+
+/*
 use winapi::ctypes::c_int;
 use winapi::ctypes::c_long;
 use winapi::shared::minwindef::DWORD;
 use winapi::shared::mstcpip::SIO_RCVALL;
 use winapi::um::winbase::INFINITE;
 use winapi::um::winsock2::{self as sock, u_long, SOCKET, WSA_FLAG_NO_HANDLE_INHERIT};
+*/
+
+#[allow(non_camel_case_types)]
+type c_int = i32;
+#[allow(non_camel_case_types)]
+type c_long = i32;
+type DWORD = u32;
+use windows_sys::Win32::Networking::WinSock::SIO_RCVALL;
+use windows_sys::Win32::System::WindowsProgramming::INFINITE;
+#[allow(non_camel_case_types)]
+type u_long = u32;
+use windows_sys::Win32::Networking::WinSock::{self as sock, SOCKET, WSA_FLAG_NO_HANDLE_INHERIT};
 
 pub(crate) const NO_INHERIT: c_int = 1 << (c_int::BITS - 1);
 pub(crate) const MAX_BUF_LEN: usize = <c_int>::max_value() as usize;

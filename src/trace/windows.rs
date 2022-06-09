@@ -12,8 +12,10 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use winapi::shared::ws2def::{AF_INET, AF_INET6, IPPROTO_IP};
-use winapi::um::winsock2::{SOCKET, SOCK_RAW, SOL_SOCKET, SO_RCVTIMEO};
+// use winapi::shared::ws2def::{AF_INET, AF_INET6, IPPROTO_IP};
+use windows_sys::Win32::Networking::WinSock::{AF_INET, AF_INET6, IPPROTO_IP};
+// use winapi::um::winsock2::{SOCKET, SOCK_RAW, SOL_SOCKET, SO_RCVTIMEO};
+use windows_sys::Win32::Networking::WinSock::{SOCKET, SOCK_RAW, SOL_SOCKET, SO_RCVTIMEO};
 
 pub(crate) fn trace_route(
     tracer: Tracer,
@@ -27,9 +29,9 @@ pub(crate) fn trace_route(
         }
     };
     let socket: SOCKET = if tracer.src_ip.is_ipv4() {
-        sys::create_socket(AF_INET, SOCK_RAW, IPPROTO_IP).unwrap()
+        sys::create_socket(AF_INET as i32, SOCK_RAW as i32, IPPROTO_IP as i32).unwrap()
     } else if tracer.src_ip.is_ipv6() {
-        sys::create_socket(AF_INET6, SOCK_RAW, IPPROTO_IP).unwrap()
+        sys::create_socket(AF_INET as i32, SOCK_RAW as i32, IPPROTO_IP as i32).unwrap()
     } else {
         return Err(String::from("invalid source address"));
     };
@@ -39,8 +41,8 @@ pub(crate) fn trace_route(
     sys::set_promiscuous(socket, true).unwrap();
     sys::set_timeout_opt(
         socket,
-        SOL_SOCKET,
-        SO_RCVTIMEO,
+        SOL_SOCKET as i32,
+        SO_RCVTIMEO as i32,
         Some(tracer.receive_timeout),
     )
     .unwrap();
