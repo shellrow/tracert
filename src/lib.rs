@@ -1,6 +1,6 @@
-mod sys;
-mod packet;
-pub mod protocol;
 pub mod node;
-pub mod trace;
+mod packet;
 pub mod ping;
+pub mod protocol;
+mod sys;
+pub mod trace;
