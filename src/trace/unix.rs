@@ -84,7 +84,6 @@ pub(crate) fn trace_route(
                                 seq: ttl,
                                 ip_addr,
                                 host_name: String::new(),
-                                ttl: Some(packet.get_ttl()),
                                 hop: Some(ttl),
                                 node_type: if ttl == 1 {
                                     NodeType::DefaultGateway
@@ -105,7 +104,6 @@ pub(crate) fn trace_route(
                                 seq: ttl,
                                 ip_addr,
                                 host_name: String::new(),
-                                ttl: Some(packet.get_ttl()),
                                 hop: Some(ttl),
                                 node_type: NodeType::Destination,
                                 rtt: recv_time,

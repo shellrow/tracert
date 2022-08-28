@@ -21,8 +21,6 @@ pub struct Node {
     pub ip_addr: IpAddr,
     /// Host name
     pub host_name: String,
-    /// Time To Live
-    pub ttl: Option<u8>,
     /// Number of hops
     pub hop: Option<u8>,
     /// Node type
