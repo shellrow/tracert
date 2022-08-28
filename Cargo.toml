@@ -11,9 +11,8 @@ categories = ["network-programming"]
 license = "MIT"
 
 [dependencies]
-#socket2 = { version = "0.4.4", features = ["all"] }
-socket2 = {git = "https://github.com/rust-lang/socket2", features=["all"], rev = "f9c1aef5"}
-#socket2 = {git = "https://github.com/rust-lang/socket2", features=["all"]}
+socket2 = { version = "0.4.4", features = ["all"] }
+#socket2 = {git = "https://github.com/rust-lang/socket2", features=["all"], rev = "f9c1aef5"}
 pnet_packet = "0.31.0"
 dns-lookup = "1.0"
 #dns-lookup = {git = "https://github.com/sn99/dns-lookup.git", rev = "7bda2a2"}
