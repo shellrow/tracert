@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
-use std::thread;
 use tracert::ping::Pinger;
+use std::thread;
 
 fn main() {
     // ICMP ping to scanme.nmap.org (45.33.32.156)
@@ -8,7 +8,9 @@ fn main() {
     let pinger: Pinger = Pinger::new(dst_ip).unwrap();
     let rx = pinger.get_progress_receiver();
     // Run ping
-    let handle = thread::spawn(move || pinger.ping());
+    let handle = thread::spawn(move|| {
+        pinger.ping()
+    });
     // Print progress
     println!("Progress:");
     while let Ok(msg) = rx.lock().unwrap().recv() {
@@ -23,7 +25,7 @@ fn main() {
                 println!("{:?}", result);
             }
             println!("Probe Time: {:?}", r.probe_time);
-        }
+        },
         Err(e) => {
             print!("{}", e);
         }
