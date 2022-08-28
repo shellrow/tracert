@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
-use tracert::trace::Tracer;
 use std::thread;
+use tracert::trace::Tracer;
 
 fn main() {
     // UDP traceroute to scanme.nmap.org (45.33.32.156)
@@ -8,9 +8,7 @@ fn main() {
     let tracer: Tracer = Tracer::new(dst_ip).unwrap();
     let rx = tracer.get_progress_receiver();
     // Run trace
-    let handle = thread::spawn(move|| {
-        tracer.trace()
-    });
+    let handle = thread::spawn(move || tracer.trace());
     // Print progress
     println!("Progress:");
     while let Ok(msg) = rx.lock().unwrap().recv() {
@@ -25,7 +23,7 @@ fn main() {
                 println!("{:?}", node);
             }
             println!("Trace Time: {:?}", r.probe_time);
-        },
+        }
         Err(e) => {
             print!("{}", e);
         }
