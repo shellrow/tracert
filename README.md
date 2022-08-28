@@ -19,7 +19,7 @@ Cross-platform library for traceroute and ping. Written in Rust.
 Add `tracert` to your dependencies
 ```
 [dependencies]
-tracert = "0.3.1"
+tracert = "0.4.1"
 ```
 
 ## Note for Windows users
