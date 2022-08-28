@@ -1,23 +1,23 @@
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(target_os="windows"))]
 mod unix;
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(target_os="windows"))]
 use unix::trace_route;
 
-#[cfg(target_os = "windows")]
+#[cfg(target_os="windows")]
 mod windows;
-#[cfg(target_os = "windows")]
+#[cfg(target_os="windows")]
 use self::windows::trace_route;
 
 mod tracer;
 pub use tracer::*;
 
-use crate::node::Node;
 use std::time::Duration;
+use crate::node::Node;
 
 /// Exit status of traceroute
 #[derive(Clone, Debug)]
 pub enum TraceStatus {
-    /// Successfully completed
+    /// Successfully completed 
     Done,
     /// Interrupted by error
     Error,
