@@ -1,6 +1,6 @@
 [package]
 name = "tracert"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["shellrow <shellrow@protonmail.com>"]
 description = "Cross-platform library for traceroute and ping"
@@ -13,7 +13,7 @@ license = "MIT"
 [dependencies]
 socket2 = { version = "0.4.6", features = ["all"] }
 pnet_packet = "0.31.0"
-dns-lookup = "1.0"
+dns-lookup = "1.0.8"
 default-net = "0.11.0"
 rand = "0.8.5"
 
