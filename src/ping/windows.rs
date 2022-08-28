@@ -68,6 +68,7 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                                 seq,
                                 ip_addr,
                                 host_name: host_name.clone(),
+                                ttl: Some(packet.get_ttl()),
                                 hop: Some(
                                     sys::guess_initial_ttl(packet.get_ttl()) - packet.get_ttl(),
                                 ),
@@ -121,6 +122,7 @@ fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                     seq,
                     ip_addr: pinger.dst_ip,
                     host_name: host_name.clone(),
+                    ttl: None,
                     hop: None,
                     node_type: NodeType::Destination,
                     rtt: connect_end_time,
@@ -157,7 +159,7 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
     let socket: SOCKET = if pinger.src_ip.is_ipv4() {
         sys::create_socket(AF_INET as i32, SOCK_RAW as i32, IPPROTO_IP as i32).unwrap()
     } else if pinger.src_ip.is_ipv6() {
-        sys::create_socket(AF_INET as i32, SOCK_RAW as i32, IPPROTO_IP as i32).unwrap()
+        sys::create_socket(AF_INET6 as i32, SOCK_RAW as i32, IPPROTO_IP as i32).unwrap()
     } else {
         return Err(String::from("invalid source address"));
     };
@@ -224,6 +226,7 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                                 seq,
                                 ip_addr,
                                 host_name: host_name.clone(),
+                                ttl: Some(packet.get_ttl()),
                                 hop: Some(
                                     sys::guess_initial_ttl(packet.get_ttl()) - packet.get_ttl(),
                                 ),

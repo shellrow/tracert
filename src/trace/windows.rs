@@ -31,7 +31,7 @@ pub(crate) fn trace_route(
     let socket: SOCKET = if tracer.src_ip.is_ipv4() {
         sys::create_socket(AF_INET as i32, SOCK_RAW as i32, IPPROTO_IP as i32).unwrap()
     } else if tracer.src_ip.is_ipv6() {
-        sys::create_socket(AF_INET as i32, SOCK_RAW as i32, IPPROTO_IP as i32).unwrap()
+        sys::create_socket(AF_INET6 as i32, SOCK_RAW as i32, IPPROTO_IP as i32).unwrap()
     } else {
         return Err(String::from("invalid source address"));
     };
@@ -104,6 +104,7 @@ pub(crate) fn trace_route(
                                     seq: ttl,
                                     ip_addr,
                                     host_name: String::new(),
+                                    ttl: Some(packet.get_ttl()),
                                     hop: Some(ttl),
                                     node_type: if ttl == 1 {
                                         NodeType::DefaultGateway
@@ -124,6 +125,7 @@ pub(crate) fn trace_route(
                                     seq: ttl,
                                     ip_addr,
                                     host_name: String::new(),
+                                    ttl: Some(packet.get_ttl()),
                                     hop: Some(ttl),
                                     node_type: NodeType::Destination,
                                     rtt: recv_time,
