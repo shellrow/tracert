@@ -1,31 +1,33 @@
-use std::time::{Instant, Duration};
-use std::net::{SocketAddr, IpAddr, UdpSocket};
-use std::mem::MaybeUninit;
-use std::thread;
-use std::sync::{Mutex, Arc};
-use std::sync::mpsc::Sender;
-use socket2::{Domain, Protocol, Socket, Type, SockAddr};
-use pnet_packet::Packet;
-use pnet_packet::icmp::IcmpTypes;
-use crate::node::{NodeType, Node};
+use super::{PingResult, PingStatus, Pinger};
+use crate::node::{Node, NodeType};
 use crate::packet;
-use super::{Pinger, PingStatus, PingResult};
 use crate::protocol::Protocol as ProbeProtocol;
-use crate::trace::BASE_DST_PORT;
 use crate::sys;
+use crate::trace::BASE_DST_PORT;
+use pnet_packet::icmp::IcmpTypes;
+use pnet_packet::Packet;
+use socket2::{Domain, Protocol, SockAddr, Socket, Type};
+use std::mem::MaybeUninit;
+use std::net::{IpAddr, SocketAddr, UdpSocket};
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
 fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
-    let host_name: String = dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
+    let host_name: String =
+        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
-    let icmp_socket: Socket = 
-    if pinger.src_ip.is_ipv4() {
+    let icmp_socket: Socket = if pinger.src_ip.is_ipv4() {
         Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).unwrap()
-    }else if pinger.src_ip.is_ipv6(){
+    } else if pinger.src_ip.is_ipv6() {
         Socket::new(Domain::IPV6, Type::RAW, Some(Protocol::ICMPV6)).unwrap()
-    }else{
+    } else {
         return Err(String::from("invalid source address"));
     };
-    icmp_socket.set_read_timeout(Some(pinger.receive_timeout)).unwrap();
+    icmp_socket
+        .set_read_timeout(Some(pinger.receive_timeout))
+        .unwrap();
     icmp_socket.set_ttl(pinger.ttl as u32).unwrap();
     let socket_addr = SocketAddr::new(pinger.dst_ip, 0);
     let sock_addr = SockAddr::from(socket_addr);
@@ -43,11 +45,12 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
             return Ok(result);
         }
         let mut buf: Vec<u8> = vec![0; 512];
-        let mut recv_buf = unsafe { &mut *(buf.as_mut_slice() as *mut [u8] as *mut [MaybeUninit<u8>]) };
+        let mut recv_buf =
+            unsafe { &mut *(buf.as_mut_slice() as *mut [u8] as *mut [MaybeUninit<u8>]) };
         let send_time = Instant::now();
         match icmp_socket.send_to(&mut icmp_packet, &sock_addr) {
-            Ok(_) => {},
-            Err(_) => {},
+            Ok(_) => {}
+            Err(_) => {}
         }
         loop {
             match icmp_socket.recv_from(&mut recv_buf) {
@@ -56,8 +59,11 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                     if recv_time > pinger.receive_timeout {
                         break;
                     }
-                    let recv_buf = unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
-                    if let Some(packet) = pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len]){
+                    let recv_buf =
+                        unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
+                    if let Some(packet) =
+                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                    {
                         let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
                         if let Some(icmp) = icmp_packet {
                             let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
@@ -68,28 +74,29 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                                         ip_addr: ip_addr,
                                         host_name: host_name.clone(),
                                         ttl: Some(packet.get_ttl()),
-                                        hop: Some(sys::guess_initial_ttl(packet.get_ttl()) - packet.get_ttl()),
+                                        hop: Some(
+                                            sys::guess_initial_ttl(packet.get_ttl())
+                                                - packet.get_ttl(),
+                                        ),
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
                                     };
                                     results.push(node.clone());
                                     match tx.lock() {
-                                        Ok(lr) => {
-                                            match lr.send(node) {
-                                                Ok(_) => {},
-                                                Err(_) => {},
-                                            }
+                                        Ok(lr) => match lr.send(node) {
+                                            Ok(_) => {}
+                                            Err(_) => {}
                                         },
-                                        Err(_) => {},
+                                        Err(_) => {}
                                     }
                                     break;
-                                },
-                                _ => {},
+                                }
+                                _ => {}
                             }
                         }
                     }
-                },
-                Err(_) => {},
+                }
+                Err(_) => {}
             }
         }
         thread::sleep(pinger.send_rate);
@@ -103,7 +110,8 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
 }
 
 fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
-    let host_name: String = dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
+    let host_name: String =
+        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
     let socket_addr: SocketAddr = SocketAddr::new(pinger.dst_ip, pinger.dst_port);
     let sock_addr = SockAddr::from(socket_addr);
@@ -135,18 +143,16 @@ fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                 };
                 results.push(node.clone());
                 match tx.lock() {
-                    Ok(lr) => {
-                        match lr.send(node) {
-                            Ok(_) => {},
-                            Err(_) => {},
-                        }
+                    Ok(lr) => match lr.send(node) {
+                        Ok(_) => {}
+                        Err(_) => {}
                     },
-                    Err(_) => {},
+                    Err(_) => {}
                 }
-            },
+            }
             Err(e) => {
                 println!("{}", e);
-            },
+            }
         }
         thread::sleep(pinger.send_rate);
     }
@@ -159,23 +165,25 @@ fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
 }
 
 fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
-    let host_name: String = dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
+    let host_name: String =
+        dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
     let udp_socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
         Err(e) => {
             return Err(format!("{}", e));
-        },
+        }
     };
-    let icmp_socket: Socket = 
-    if pinger.src_ip.is_ipv4() {
+    let icmp_socket: Socket = if pinger.src_ip.is_ipv4() {
         Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).unwrap()
-    }else if pinger.src_ip.is_ipv6(){
+    } else if pinger.src_ip.is_ipv6() {
         Socket::new(Domain::IPV6, Type::RAW, Some(Protocol::ICMPV6)).unwrap()
-    }else{
+    } else {
         return Err(String::from("invalid source address"));
     };
-    icmp_socket.set_read_timeout(Some(pinger.receive_timeout)).unwrap();
+    icmp_socket
+        .set_read_timeout(Some(pinger.receive_timeout))
+        .unwrap();
     let start_time = Instant::now();
     let mut probe_time = Duration::from_millis(0);
     for seq in 1..pinger.count + 1 {
@@ -192,28 +200,32 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
             Ok(_) => (),
             Err(e) => {
                 return Err(format!("{}", e));
-            },
+            }
         }
         let udp_buf = [0u8; 0];
         let mut buf: Vec<u8> = vec![0; 512];
-        let mut recv_buf = unsafe { &mut *(buf.as_mut_slice() as *mut [u8] as *mut [MaybeUninit<u8>]) };
+        let mut recv_buf =
+            unsafe { &mut *(buf.as_mut_slice() as *mut [u8] as *mut [MaybeUninit<u8>]) };
         let dst: SocketAddr = SocketAddr::new(pinger.dst_ip, BASE_DST_PORT);
         let send_time = Instant::now();
         match udp_socket.send_to(&udp_buf, dst) {
             Ok(_) => (),
             Err(e) => {
                 return Err(format!("{}", e));
-            },
+            }
         }
-        loop{
+        loop {
             if Instant::now().duration_since(send_time) > pinger.receive_timeout {
                 break;
             }
             match icmp_socket.recv_from(&mut recv_buf) {
                 Ok((bytes_len, _addr)) => {
                     let recv_time = Instant::now().duration_since(send_time);
-                    let recv_buf = unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
-                    if let Some(packet) = pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len]){
+                    let recv_buf =
+                        unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
+                    if let Some(packet) =
+                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                    {
                         let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
                         if let Some(icmp) = icmp_packet {
                             let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
@@ -224,34 +236,36 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                                         ip_addr: ip_addr,
                                         host_name: host_name.clone(),
                                         ttl: Some(packet.get_ttl()),
-                                        hop: Some(sys::guess_initial_ttl(packet.get_ttl()) - packet.get_ttl()),
+                                        hop: Some(
+                                            sys::guess_initial_ttl(packet.get_ttl())
+                                                - packet.get_ttl(),
+                                        ),
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
                                     };
                                     results.push(node.clone());
                                     match tx.lock() {
-                                        Ok(lr) => {
-                                            match lr.send(node) {
-                                                Ok(_) => {},
-                                                Err(_) => {},
-                                            }
+                                        Ok(lr) => match lr.send(node) {
+                                            Ok(_) => {}
+                                            Err(_) => {}
                                         },
-                                        Err(_) => {},
+                                        Err(_) => {}
                                     }
                                     break;
-                                },
-                                _ => {},
+                                }
+                                _ => {}
                             }
                         }
                     }
-                },
-                Err(_) => {},
+                }
+                Err(_) => {}
             }
         }
         thread::sleep(pinger.send_rate);
     }
     for node in &mut results {
-        let host_name: String = dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
+        let host_name: String =
+            dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
         node.host_name = host_name;
     }
     let result: PingResult = PingResult {
@@ -264,18 +278,9 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
 
 pub(crate) fn ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
     match pinger.protocol {
-        ProbeProtocol::Icmpv4 => {
-            icmp_ping(pinger, tx)
-        },
-        ProbeProtocol::Icmpv6 => {
-            icmp_ping(pinger, tx)
-        },
-        ProbeProtocol::Tcp => {
-            tcp_ping(pinger, tx)
-        },
-        ProbeProtocol::Udp => {
-            udp_ping(pinger, tx)
-        },
+        ProbeProtocol::Icmpv4 => icmp_ping(pinger, tx),
+        ProbeProtocol::Icmpv6 => icmp_ping(pinger, tx),
+        ProbeProtocol::Tcp => tcp_ping(pinger, tx),
+        ProbeProtocol::Udp => udp_ping(pinger, tx),
     }
 }
-

@@ -1,26 +1,34 @@
-use std::time::Duration;
-use std::net::UdpSocket;
-use std::mem::{self, size_of, MaybeUninit};
 use socket2::SockAddr;
 use std::cmp::min;
+use std::io;
+use std::mem::{self, MaybeUninit};
+use std::net::UdpSocket;
 use std::ptr;
 use std::sync::Once;
-use std::io;
-use winapi::ctypes::c_int;
-use winapi::ctypes::c_long;
-use winapi::shared::mstcpip::SIO_RCVALL;
-use winapi::um::winsock2::{self as sock, u_long, SOCKET, WSA_FLAG_NO_HANDLE_INHERIT};
-use winapi::shared::minwindef::DWORD;
-use winapi::um::winbase::{INFINITE};
+use std::time::Duration;
 
-pub(crate) const NO_INHERIT: c_int = 1 << ((size_of::<c_int>() * 8) - 1);
+#[allow(non_camel_case_types)]
+type c_int = i32;
+
+#[allow(non_camel_case_types)]
+type c_long = i32;
+
+type DWORD = u32;
+use windows_sys::Win32::Networking::WinSock::SIO_RCVALL;
+use windows_sys::Win32::System::Threading::INFINITE;
+
+#[allow(non_camel_case_types)]
+type u_long = u32;
+
+use windows_sys::Win32::Networking::WinSock::{self as sock, SOCKET, WSA_FLAG_NO_HANDLE_INHERIT};
+
+pub(crate) const NO_INHERIT: c_int = 1 << (c_int::BITS - 1);
 pub(crate) const MAX_BUF_LEN: usize = <c_int>::max_value() as usize;
 
-#[allow(unused_macros)]
 macro_rules! syscall {
     ($fn: ident ( $($arg: expr),* $(,)* ), $err_test: path, $err_value: expr) => {{
         #[allow(unused_unsafe)]
-        let res = unsafe { sock::$fn($($arg, )*) };
+        let res = unsafe { windows_sys::Win32::Networking::WinSock::$fn($($arg, )*) };
         if $err_test(&res, &$err_value) {
             Err(io::Error::last_os_error())
         } else {
@@ -85,13 +93,13 @@ pub(crate) fn set_promiscuous(socket: SOCKET, promiscuous: bool) -> io::Result<(
 pub(crate) unsafe fn setsockopt<T>(
     socket: SOCKET,
     level: c_int,
-    optname: c_int,
+    optname: i32,
     optval: T,
 ) -> io::Result<()> {
     syscall!(
         setsockopt(
             socket,
-            level,
+            level as i32,
             optname,
             (&optval as *const T).cast(),
             mem::size_of::<T>() as c_int,
@@ -124,7 +132,7 @@ pub(crate) fn recv_from(
     flags: c_int,
 ) -> io::Result<(usize, SockAddr)> {
     unsafe {
-        SockAddr::init(|storage, addrlen| {
+        SockAddr::try_init(|storage, addrlen| {
             let res = syscall!(
                 recvfrom(
                     socket,
