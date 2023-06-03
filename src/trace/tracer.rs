@@ -1,14 +1,14 @@
-use std::net::IpAddr;
-use std::time::Duration;
-use std::sync::{Mutex, Arc};
-use std::sync::mpsc::{channel ,Sender, Receiver};
 use super::TraceResult;
 use crate::node::Node;
+use std::net::IpAddr;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub(crate) const BASE_DST_PORT: u16 = 33435;
 
 /// Tracer structure
-/// 
+///
 /// Contains various settings for traceroute
 #[derive(Clone, Debug)]
 pub struct Tracer {
@@ -33,15 +33,14 @@ pub struct Tracer {
 impl Tracer {
     /// Create new Tracer instance with destination IP address
     pub fn new(dst_ip: IpAddr) -> Result<Tracer, String> {
-        match default_net::get_default_interface(){
+        match default_net::get_default_interface() {
             Ok(interface) => {
-                let src_ip: IpAddr = 
-                if interface.ipv4.len() > 0 {
+                let src_ip: IpAddr = if interface.ipv4.len() > 0 {
                     IpAddr::V4(interface.ipv4[0].addr)
-                }else{
+                } else {
                     if interface.ipv6.len() > 0 {
                         IpAddr::V6(interface.ipv6[0].addr)
-                    }else{
+                    } else {
                         return Err(String::from("Failed to get default interface"));
                     }
                 };
@@ -57,10 +56,10 @@ impl Tracer {
                     rx: Arc::new(Mutex::new(rx)),
                 };
                 return Ok(tracer);
-            },
+            }
             Err(e) => {
-                return Err(format!("{}",e));
-            },
+                return Err(format!("{}", e));
+            }
         }
     }
     /// Trace route to destination
@@ -68,7 +67,7 @@ impl Tracer {
         super::trace_route(self.clone(), &self.tx)
     }
     /// Set source IP address
-    pub fn set_src_ip(&mut self, src_ip: IpAddr){
+    pub fn set_src_ip(&mut self, src_ip: IpAddr) {
         self.src_ip = src_ip;
     }
     /// Get source IP address
@@ -76,7 +75,7 @@ impl Tracer {
         self.src_ip
     }
     /// Set destination IP address
-    pub fn set_dst_ip(&mut self, dst_ip: IpAddr){
+    pub fn set_dst_ip(&mut self, dst_ip: IpAddr) {
         self.dst_ip = dst_ip;
     }
     /// Get destination IP address
@@ -84,7 +83,7 @@ impl Tracer {
         self.dst_ip
     }
     /// Set max hop
-    pub fn set_max_hop(&mut self, max_hop: u8){
+    pub fn set_max_hop(&mut self, max_hop: u8) {
         self.max_hop = max_hop;
     }
     /// Get max hop
@@ -92,7 +91,7 @@ impl Tracer {
         self.max_hop
     }
     /// Set traceroute timeout
-    pub fn set_trace_timeout(&mut self, trace_timeout: Duration){
+    pub fn set_trace_timeout(&mut self, trace_timeout: Duration) {
         self.trace_timeout = trace_timeout;
     }
     /// Get traceroute timeout
@@ -100,7 +99,7 @@ impl Tracer {
         self.trace_timeout
     }
     /// Set packet receive timeout
-    pub fn set_receive_timeout(&mut self, receive_timeout: Duration){
+    pub fn set_receive_timeout(&mut self, receive_timeout: Duration) {
         self.receive_timeout = receive_timeout;
     }
     /// Get packet receive timeout
@@ -108,7 +107,7 @@ impl Tracer {
         self.receive_timeout
     }
     /// Set packet send rate
-    pub fn set_send_rate(&mut self, send_rate: Duration){
+    pub fn set_send_rate(&mut self, send_rate: Duration) {
         self.send_rate = send_rate;
     }
     /// Get packet send rate
