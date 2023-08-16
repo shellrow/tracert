@@ -45,7 +45,6 @@ pub fn build_tcp_syn_packet(
     tcp_packet.packet().to_vec()
 }
 
-#[allow(dead_code)]
 pub fn build_udp_probe_packet(
     src_ip: IpAddr,
     src_port: u16,
