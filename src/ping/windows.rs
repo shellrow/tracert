@@ -9,12 +9,12 @@ use pnet_packet::Packet;
 use pnet_packet::icmpv6::Icmpv6Types;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::mem::MaybeUninit;
-use std::net::{IpAddr, SocketAddr, UdpSocket, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, SocketAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use windows_sys::Win32::Networking::WinSock::{AF_INET, AF_INET6, IPPROTO_IP};
+use windows_sys::Win32::Networking::WinSock::{AF_INET, AF_INET6, IPPROTO_IP, IPPROTO_ICMPV6};
 use windows_sys::Win32::Networking::WinSock::{SOCKET, SOCK_RAW, SOL_SOCKET, SO_RCVTIMEO};
 
 fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
@@ -219,17 +219,18 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
     } else {
         return Err(String::from("Invalid address specified"));
     };
-    let udp_socket = 
-    match UdpSocket::bind(bind_socket_addr) {
-        Ok(s) => s,
-        Err(e) => {
-            return Err(format!("{}", e));
-        }
+    let udp_socket: Socket = if pinger.src_ip.is_ipv4() && pinger.dst_ip.is_ipv4() {
+        Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP)).unwrap()
+    } else if pinger.src_ip.is_ipv6() && pinger.dst_ip.is_ipv6() {
+        Socket::new(Domain::IPV6, Type::RAW, Some(Protocol::UDP)).unwrap()
+    } else {
+        return Err(String::from("Invalid address specified"));
     };
+    udp_socket.bind(&SockAddr::from(bind_socket_addr)).unwrap();
     let socket: SOCKET = if pinger.src_ip.is_ipv4() && pinger.dst_ip.is_ipv4() {
         sys::create_socket(AF_INET as i32, SOCK_RAW, IPPROTO_IP).unwrap()
     } else if pinger.src_ip.is_ipv6() && pinger.dst_ip.is_ipv6() {
-        sys::create_socket(AF_INET6 as i32, SOCK_RAW, IPPROTO_IP).unwrap()
+        sys::create_socket(AF_INET6 as i32, SOCK_RAW, IPPROTO_ICMPV6).unwrap()
     } else {
         return Err(String::from("Invalid address specified"));
     };
@@ -256,10 +257,19 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
             };
             return Ok(result);
         }
-        match udp_socket.set_ttl(pinger.ttl as u32) {
-            Ok(_) => (),
-            Err(e) => {
-                return Err(format!("{}", e));
+        if pinger.dst_ip.is_ipv4() {
+            match udp_socket.set_ttl(pinger.ttl as u32) {
+                Ok(_) => (),
+                Err(e) => {
+                    return Err(format!("{}", e));
+                }
+            }
+        }else {
+            match udp_socket.set_unicast_hops_v6(pinger.ttl as u32) {
+                Ok(_) => (),
+                Err(e) => {
+                    return Err(format!("{}", e));
+                }
             }
         }
         let udp_buf = [0u8; 0];
@@ -267,10 +277,20 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
         let send_time = Instant::now();
         let mut buf: Vec<u8> = vec![0; 512];
         let recv_buf = unsafe { &mut *(buf.as_mut_slice() as *mut [u8] as *mut [MaybeUninit<u8>]) };
-        match udp_socket.send_to(&udp_buf, dst) {
-            Ok(_) => (),
-            Err(e) => {
-                return Err(format!("{}", e));
+        if pinger.dst_ip.is_ipv4() {
+            match udp_socket.send_to(&udp_buf, &SockAddr::from(dst)) {
+                Ok(_) => (),
+                Err(e) => {
+                    return Err(format!("{}", e));
+                }
+            }
+        }else{
+            let udp_packet = crate::packet::build_udp_probe_packet(pinger.src_ip, crate::packet::DEFAULT_SRC_PORT, pinger.dst_ip, BASE_DST_PORT);
+            match udp_socket.send_to(&udp_packet, &SockAddr::from(dst)) {
+                Ok(_) => (),
+                Err(e) => {
+                    return Err(format!("{}", e));
+                }
             }
         }
         loop {
@@ -289,40 +309,42 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                     let recv_time = Instant::now().duration_since(send_time);
                     let recv_buf =
                         unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
-                    if let Some(packet) =
-                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
-                    {
-                        let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
-                        if let Some(icmp) = icmp_packet {
-                            let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
-                            match icmp.get_icmp_type() {
-                                IcmpTypes::DestinationUnreachable => {
-                                    let node = Node {
-                                        seq: seq,
-                                        ip_addr: ip_addr,
-                                        host_name: host_name.clone(),
-                                        ttl: Some(packet.get_ttl()),
-                                        hop: Some(
-                                            sys::guess_initial_ttl(packet.get_ttl())
-                                                - packet.get_ttl(),
-                                        ),
-                                        node_type: NodeType::Destination,
-                                        rtt: recv_time,
-                                    };
-                                    results.push(node.clone());
-                                    match tx.lock() {
-                                        Ok(lr) => match lr.send(node) {
-                                            Ok(_) => {}
+                    if pinger.dst_ip.is_ipv4() {
+                        if let Some(packet) =
+                            pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                        {
+                            let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
+                            if let Some(icmp) = icmp_packet {
+                                let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
+                                match icmp.get_icmp_type() {
+                                    IcmpTypes::DestinationUnreachable => {
+                                        let node = Node {
+                                            seq: seq,
+                                            ip_addr: ip_addr,
+                                            host_name: host_name.clone(),
+                                            ttl: Some(packet.get_ttl()),
+                                            hop: Some(
+                                                sys::guess_initial_ttl(packet.get_ttl())
+                                                    - packet.get_ttl(),
+                                            ),
+                                            node_type: NodeType::Destination,
+                                            rtt: recv_time,
+                                        };
+                                        results.push(node.clone());
+                                        match tx.lock() {
+                                            Ok(lr) => match lr.send(node) {
+                                                Ok(_) => {}
+                                                Err(_) => {}
+                                            },
                                             Err(_) => {}
-                                        },
-                                        Err(_) => {}
+                                        }
+                                        break;
                                     }
-                                    break;
+                                    _ => {}
                                 }
-                                _ => {}
                             }
                         }
-                    }else {
+                    }else{
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
                         if let Some(icmp_packet) =
@@ -330,7 +352,7 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                         {
                             let ip_addr: IpAddr = pinger.dst_ip;
                             match icmp_packet.get_icmpv6_type() {
-                                Icmpv6Types::EchoReply => {
+                                Icmpv6Types::DestinationUnreachable => {
                                     let node = Node {
                                         seq: seq,
                                         ip_addr: ip_addr,

@@ -99,7 +99,7 @@ pub(crate) fn trace_route(
                 }
             }
         }else{
-            let udp_packet = crate::packet::build_udp_probe_packet(tracer.src_ip, 58443, tracer.dst_ip, BASE_DST_PORT + ttl as u16);
+            let udp_packet = crate::packet::build_udp_probe_packet(tracer.src_ip, crate::packet::DEFAULT_SRC_PORT, tracer.dst_ip, BASE_DST_PORT + ttl as u16);
             match udp_socket.send_to(&udp_packet, &SockAddr::from(dst)) {
                 Ok(_) => (),
                 Err(e) => {

@@ -14,6 +14,8 @@ const IPV4_HEADER_LEN: usize = pnet_packet::ipv4::MutableIpv4Packet::minimum_pac
 const ICMPV4_HEADER_SIZE: usize = pnet_packet::icmp::echo_request::MutableEchoRequestPacket::minimum_packet_size();
 const ICMPV6_HEADER_SIZE: usize = pnet_packet::icmpv6::echo_request::MutableEchoRequestPacket::minimum_packet_size();
 
+pub(crate) const DEFAULT_SRC_PORT: u16 = 58443;
+
 pub fn build_icmpv4_echo_packet() -> Vec<u8> {
     let mut buf = vec![0; ICMPV4_HEADER_SIZE];
     let mut icmp_packet =
