@@ -23,10 +23,10 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
     let mut results: Vec<Node> = vec![];
     let icmp_socket: Socket = if pinger.src_ip.is_ipv4() && pinger.dst_ip.is_ipv4() {
         Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).unwrap()
-    } else if pinger.src_ip.is_ipv6() {
+    } else if pinger.src_ip.is_ipv6() && pinger.dst_ip.is_ipv6() {
         Socket::new(Domain::IPV6, Type::RAW, Some(Protocol::ICMPV6)).unwrap()
     } else {
-        return Err(String::from("invalid source address"));
+        return Err(String::from("Invalid address specified"));
     };
     icmp_socket
         .set_read_timeout(Some(pinger.receive_timeout))
@@ -165,7 +165,13 @@ fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
             };
             return Ok(result);
         }
-        let socket = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP)).unwrap();
+        let socket = if pinger.src_ip.is_ipv4() && pinger.dst_ip.is_ipv4() {
+            Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP)).unwrap()
+        } else if pinger.src_ip.is_ipv6() && pinger.dst_ip.is_ipv6() {
+            Socket::new(Domain::IPV6, Type::STREAM, Some(Protocol::TCP)).unwrap()
+        } else {
+            return Err(String::from("Invalid address specified"));
+        };
         let connect_start_time = Instant::now();
         match socket.connect_timeout(&sock_addr, pinger.receive_timeout) {
             Ok(_) => {
@@ -212,12 +218,12 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
             return Err(format!("{}", e));
         }
     };
-    let socket: SOCKET = if pinger.src_ip.is_ipv4() {
+    let socket: SOCKET = if pinger.src_ip.is_ipv4() && pinger.dst_ip.is_ipv4() {
         sys::create_socket(AF_INET as i32, SOCK_RAW, IPPROTO_IP).unwrap()
-    } else if pinger.src_ip.is_ipv6() {
+    } else if pinger.src_ip.is_ipv6() && pinger.dst_ip.is_ipv6() {
         sys::create_socket(AF_INET6 as i32, SOCK_RAW, IPPROTO_IP).unwrap()
     } else {
-        return Err(String::from("invalid source address"));
+        return Err(String::from("Invalid address specified"));
     };
     let socket_addr: SocketAddr = SocketAddr::new(pinger.src_ip, 0);
     let sock_addr = SockAddr::from(socket_addr);
@@ -292,6 +298,37 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                                             sys::guess_initial_ttl(packet.get_ttl())
                                                 - packet.get_ttl(),
                                         ),
+                                        node_type: NodeType::Destination,
+                                        rtt: recv_time,
+                                    };
+                                    results.push(node.clone());
+                                    match tx.lock() {
+                                        Ok(lr) => match lr.send(node) {
+                                            Ok(_) => {}
+                                            Err(_) => {}
+                                        },
+                                        Err(_) => {}
+                                    }
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }else {
+                        // IPv6 (ICMPv6 Header only)
+                        // The IPv6 header is automatically cropped off when recvfrom() is used.
+                        if let Some(icmp_packet) =
+                            pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
+                        {
+                            let ip_addr: IpAddr = pinger.dst_ip;
+                            match icmp_packet.get_icmpv6_type() {
+                                Icmpv6Types::EchoReply => {
+                                    let node = Node {
+                                        seq: seq,
+                                        ip_addr: ip_addr,
+                                        host_name: host_name.clone(),
+                                        ttl: None,
+                                        hop: None,
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
                                     };
