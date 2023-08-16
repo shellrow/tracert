@@ -3,8 +3,8 @@ use std::thread;
 use tracert::ping::Pinger;
 
 fn main() {
-    // ICMP ping to scanme.nmap.org (45.33.32.156)
-    let dst_ip: IpAddr = IpAddr::V4(Ipv4Addr::new(45, 33, 32, 156));
+    // ICMPv4 ping to cloudflare's one.one.one.one (1.1.1.1)
+    let dst_ip: IpAddr = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
     let pinger: Pinger = Pinger::new(dst_ip).unwrap();
     let rx = pinger.get_progress_receiver();
     // Run ping

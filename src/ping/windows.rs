@@ -6,6 +6,7 @@ use crate::sys;
 use crate::trace::BASE_DST_PORT;
 use pnet_packet::icmp::IcmpTypes;
 use pnet_packet::Packet;
+use pnet_packet::icmpv6::Icmpv6Types;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::mem::MaybeUninit;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
@@ -20,7 +21,7 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
     let host_name: String =
         dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
-    let icmp_socket: Socket = if pinger.src_ip.is_ipv4() {
+    let icmp_socket: Socket = if pinger.src_ip.is_ipv4() && pinger.dst_ip.is_ipv4() {
         Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).unwrap()
     } else if pinger.src_ip.is_ipv6() {
         Socket::new(Domain::IPV6, Type::RAW, Some(Protocol::ICMPV6)).unwrap()
@@ -33,7 +34,11 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
     icmp_socket.set_ttl(pinger.ttl as u32).unwrap();
     let socket_addr = SocketAddr::new(pinger.dst_ip, 0);
     let sock_addr = SockAddr::from(socket_addr);
-    let mut icmp_packet: Vec<u8> = packet::build_icmpv4_echo_packet();
+    let mut icmp_packet: Vec<u8> = if pinger.dst_ip.is_ipv4() {
+        packet::build_icmpv4_echo_packet()
+    } else {
+        packet::build_icmpv6_echo_packet()
+    };
     let start_time = Instant::now();
     let mut probe_time = Duration::from_millis(0);
     for seq in 1..pinger.count + 1 {
@@ -80,6 +85,37 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                                             sys::guess_initial_ttl(packet.get_ttl())
                                                 - packet.get_ttl(),
                                         ),
+                                        node_type: NodeType::Destination,
+                                        rtt: recv_time,
+                                    };
+                                    results.push(node.clone());
+                                    match tx.lock() {
+                                        Ok(lr) => match lr.send(node) {
+                                            Ok(_) => {}
+                                            Err(_) => {}
+                                        },
+                                        Err(_) => {}
+                                    }
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }else{
+                        // IPv6 (ICMPv6 Header only)
+                        // The IPv6 header is automatically cropped off when recvfrom() is used.
+                        if let Some(icmp_packet) =
+                            pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
+                        {
+                            let ip_addr: IpAddr = pinger.dst_ip;
+                            match icmp_packet.get_icmpv6_type() {
+                                Icmpv6Types::EchoReply => {
+                                    let node = Node {
+                                        seq: seq,
+                                        ip_addr: ip_addr,
+                                        host_name: host_name.clone(),
+                                        ttl: None,
+                                        hop: None,
                                         node_type: NodeType::Destination,
                                         rtt: recv_time,
                                     };
