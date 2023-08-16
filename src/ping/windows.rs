@@ -68,37 +68,39 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                     }
                     let recv_buf =
                         unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
-                    if let Some(packet) =
-                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
-                    {
-                        let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
-                        if let Some(icmp) = icmp_packet {
-                            let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
-                            match icmp.get_icmp_type() {
-                                IcmpTypes::EchoReply => {
-                                    let node = Node {
-                                        seq: seq,
-                                        ip_addr: ip_addr,
-                                        host_name: host_name.clone(),
-                                        ttl: Some(packet.get_ttl()),
-                                        hop: Some(
-                                            sys::guess_initial_ttl(packet.get_ttl())
-                                                - packet.get_ttl(),
-                                        ),
-                                        node_type: NodeType::Destination,
-                                        rtt: recv_time,
-                                    };
-                                    results.push(node.clone());
-                                    match tx.lock() {
-                                        Ok(lr) => match lr.send(node) {
-                                            Ok(_) => {}
+                    if pinger.dst_ip.is_ipv4() {
+                        if let Some(packet) =
+                            pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                        {
+                            let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
+                            if let Some(icmp) = icmp_packet {
+                                let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
+                                match icmp.get_icmp_type() {
+                                    IcmpTypes::EchoReply => {
+                                        let node = Node {
+                                            seq: seq,
+                                            ip_addr: ip_addr,
+                                            host_name: host_name.clone(),
+                                            ttl: Some(packet.get_ttl()),
+                                            hop: Some(
+                                                sys::guess_initial_ttl(packet.get_ttl())
+                                                    - packet.get_ttl(),
+                                            ),
+                                            node_type: NodeType::Destination,
+                                            rtt: recv_time,
+                                        };
+                                        results.push(node.clone());
+                                        match tx.lock() {
+                                            Ok(lr) => match lr.send(node) {
+                                                Ok(_) => {}
+                                                Err(_) => {}
+                                            },
                                             Err(_) => {}
-                                        },
-                                        Err(_) => {}
+                                        }
+                                        break;
                                     }
-                                    break;
+                                    _ => {}
                                 }
-                                _ => {}
                             }
                         }
                     }else{
