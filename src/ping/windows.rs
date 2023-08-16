@@ -9,7 +9,7 @@ use pnet_packet::Packet;
 use pnet_packet::icmpv6::Icmpv6Types;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::mem::MaybeUninit;
-use std::net::{IpAddr, SocketAddr, UdpSocket};
+use std::net::{IpAddr, SocketAddr, UdpSocket, Ipv4Addr, Ipv6Addr};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -212,7 +212,15 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
     let host_name: String =
         dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or(pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
-    let udp_socket = match UdpSocket::bind("0.0.0.0:0") {
+    let bind_socket_addr: SocketAddr = if pinger.src_ip.is_ipv4() && pinger.dst_ip.is_ipv4() {
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)
+    } else if pinger.src_ip.is_ipv6() && pinger.dst_ip.is_ipv6() {
+        SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)
+    } else {
+        return Err(String::from("Invalid address specified"));
+    };
+    let udp_socket = 
+    match UdpSocket::bind(bind_socket_addr) {
         Ok(s) => s,
         Err(e) => {
             return Err(format!("{}", e));
