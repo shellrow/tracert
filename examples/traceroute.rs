@@ -3,8 +3,10 @@ use std::thread;
 use tracert::trace::Tracer;
 
 fn main() {
-    // UDP traceroute to scanme.nmap.org (45.33.32.156)
-    let dst_ip: IpAddr = IpAddr::V4(Ipv4Addr::new(45, 33, 32, 156));
+    // UDP traceroute to dns.google (8.8.8.8)
+    let dst_ip: IpAddr = IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8));
+    // IPv6 UDP traceroute to dns.google (2001:4860:4860::8888)
+    //let dst_ip: IpAddr = IpAddr::V6(Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888));
     let tracer: Tracer = Tracer::new(dst_ip).unwrap();
     let rx = tracer.get_progress_receiver();
     // Run trace

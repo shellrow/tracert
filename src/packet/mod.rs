@@ -8,23 +8,26 @@ mod udp;
 use pnet_packet::Packet;
 use std::net::IpAddr;
 
+const ETHERNET_HEADER_LEN: usize = pnet_packet::ethernet::MutableEthernetPacket::minimum_packet_size();
+const IPV4_HEADER_LEN: usize = pnet_packet::ipv4::MutableIpv4Packet::minimum_packet_size();
+//const IPV6_HEADER_LEN: usize = pnet_packet::ipv6::MutableIpv6Packet::minimum_packet_size();
+const ICMPV4_HEADER_SIZE: usize = pnet_packet::icmp::echo_request::MutableEchoRequestPacket::minimum_packet_size();
+const ICMPV6_HEADER_SIZE: usize = pnet_packet::icmpv6::echo_request::MutableEchoRequestPacket::minimum_packet_size();
+
 #[allow(dead_code)]
-const ETHERNET_HEADER_LEN: usize = 14;
-#[allow(dead_code)]
-const IPV4_HEADER_LEN: usize = 20;
+pub(crate) const DEFAULT_SRC_PORT: u16 = 58443;
 
 pub fn build_icmpv4_echo_packet() -> Vec<u8> {
-    let mut buf = vec![0; 16];
+    let mut buf = vec![0; ICMPV4_HEADER_SIZE];
     let mut icmp_packet =
         pnet_packet::icmp::echo_request::MutableEchoRequestPacket::new(&mut buf[..]).unwrap();
     icmpv4::build_icmpv4_packet(&mut icmp_packet);
     icmp_packet.packet().to_vec()
 }
 
-#[allow(dead_code)]
 pub fn build_icmpv6_echo_packet() -> Vec<u8> {
-    let mut buf = vec![0; 16];
-    let mut icmp_packet = pnet_packet::icmpv6::MutableIcmpv6Packet::new(&mut buf[..]).unwrap();
+    let mut buf = vec![0; ICMPV6_HEADER_SIZE];
+    let mut icmp_packet = pnet_packet::icmpv6::echo_request::MutableEchoRequestPacket::new(&mut buf[..]).unwrap();
     icmpv6::build_icmpv6_packet(&mut icmp_packet);
     icmp_packet.packet().to_vec()
 }

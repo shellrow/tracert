@@ -35,7 +35,7 @@ impl Tracer {
     pub fn new(dst_ip: IpAddr) -> Result<Tracer, String> {
         match default_net::get_default_interface() {
             Ok(interface) => {
-                let src_ip: IpAddr = if interface.ipv4.len() > 0 {
+                let src_ip: IpAddr = if dst_ip.is_ipv4() && interface.ipv4.len() > 0 {
                     IpAddr::V4(interface.ipv4[0].addr)
                 } else {
                     if interface.ipv6.len() > 0 {

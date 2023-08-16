@@ -3,9 +3,12 @@ use std::thread;
 use tracert::ping::Pinger;
 
 fn main() {
-    // ICMP ping to scanme.nmap.org (45.33.32.156)
-    let dst_ip: IpAddr = IpAddr::V4(Ipv4Addr::new(45, 33, 32, 156));
-    let pinger: Pinger = Pinger::new(dst_ip).unwrap();
+    // UDP ping to dns.google (8.8.8.8)
+    let dst_ip: IpAddr = IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8));
+    // IPv6 UDP ping to dns.google (2001:4860:4860::8888)
+    //let dst_ip: IpAddr = IpAddr::V6(Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888));
+    let mut pinger: Pinger = Pinger::new(dst_ip).unwrap();
+    pinger.set_protocol(tracert::protocol::Protocol::Udp);
     let rx = pinger.get_progress_receiver();
     // Run ping
     let handle = thread::spawn(move || pinger.ping());
