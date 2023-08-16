@@ -8,18 +8,21 @@ Cross-platform library for traceroute and ping. Written in Rust.
 
 ## Features
 - traceroute
-    - [x] UDP
+    - [x] IPv4 UDP
+    - [x] IPv6 UDP
 - ping
-    - [x] ICMPv4
-    - [ ] ICMPv6
-    - [x] UDP
-    - [x] TCP
+    - [x] IPv4 ICMPv4
+    - [x] IPv6 ICMPv6
+    - [x] IPv4 UDP
+    - [x] IPv6 UDP
+    - [x] IPv4 TCP
+    - [x] IPv6 TCP
 
 ## Usage
 Add `tracert` to your dependencies
 ```
 [dependencies]
-tracert = "0.5"
+tracert = "0.6"
 ```
 
 ## Note for Windows users
