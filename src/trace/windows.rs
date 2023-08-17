@@ -135,7 +135,7 @@ pub(crate) fn trace_route(
                                         let node = Node {
                                             seq: ttl,
                                             ip_addr: ip_addr,
-                                            host_name: String::new(),
+                                            host_name: ip_addr.to_string(),
                                             ttl: Some(packet.get_ttl()),
                                             hop: Some(ttl),
                                             node_type: if ttl == 1 {
@@ -160,7 +160,7 @@ pub(crate) fn trace_route(
                                         let node = Node {
                                             seq: ttl,
                                             ip_addr: ip_addr,
-                                            host_name: String::new(),
+                                            host_name: ip_addr.to_string(),
                                             ttl: Some(packet.get_ttl()),
                                             hop: Some(ttl),
                                             node_type: NodeType::Destination,
@@ -192,7 +192,7 @@ pub(crate) fn trace_route(
                                     let node = Node {
                                         seq: ttl,
                                         ip_addr: ip_addr,
-                                        host_name: String::new(),
+                                        host_name: ip_addr.to_string(),
                                         ttl: None,
                                         hop: Some(ttl),
                                         node_type: if ttl == 1 {
@@ -217,7 +217,7 @@ pub(crate) fn trace_route(
                                     let node = Node {
                                         seq: ttl,
                                         ip_addr: ip_addr,
-                                        host_name: String::new(),
+                                        host_name: ip_addr.to_string(),
                                         ttl: None,
                                         hop: Some(ttl),
                                         node_type: NodeType::Destination,
@@ -245,9 +245,10 @@ pub(crate) fn trace_route(
         thread::sleep(tracer.send_rate);
     }
     for node in &mut nodes {
-        let host_name: String =
-            dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
-        node.host_name = host_name;
+        if node.node_type == NodeType::Destination {
+            let host_name: String = dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
+            node.host_name = host_name;
+        }
     }
     let result: TraceResult = TraceResult {
         nodes: nodes,
