@@ -362,11 +362,6 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
         }
         thread::sleep(pinger.send_rate);
     }
-    for node in &mut results {
-        let host_name: String =
-            dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
-        node.host_name = host_name;
-    }
     let result: PingResult = PingResult {
         results: results,
         status: PingStatus::Done,
