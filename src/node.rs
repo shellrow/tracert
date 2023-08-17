@@ -2,7 +2,7 @@ use std::net::IpAddr;
 use std::time::Duration;
 
 /// Node type
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum NodeType {
     /// Default gateway
     DefaultGateway,

@@ -1,5 +1,5 @@
-use pnet_packet::icmpv6::Icmpv6Types;
 use pnet_packet::icmpv6::echo_request::MutableEchoRequestPacket;
+use pnet_packet::icmpv6::Icmpv6Types;
 use pnet_packet::Packet;
 
 pub fn build_icmpv6_packet(icmp_packet: &mut MutableEchoRequestPacket) {

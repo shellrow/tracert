@@ -2,13 +2,13 @@ use super::BASE_DST_PORT;
 use super::{TraceResult, TraceStatus, Tracer};
 use crate::node::{Node, NodeType};
 use pnet_packet::icmp::IcmpTypes;
-use pnet_packet::Packet;
 use pnet_packet::icmpv6::Icmpv6Types;
-use socket2::{Domain, Protocol, Socket, Type, SockAddr};
+use pnet_packet::Packet;
+use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::collections::HashSet;
 use std::mem::MaybeUninit;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -64,7 +64,7 @@ pub(crate) fn trace_route(
                     return Err(format!("{}", e));
                 }
             }
-        }else {
+        } else {
             match udp_socket.set_unicast_hops_v6(ttl as u32) {
                 Ok(_) => (),
                 Err(e) => {
@@ -96,7 +96,9 @@ pub(crate) fn trace_route(
                 let recv_time = Instant::now().duration_since(send_time);
                 let recv_buf = unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
                 if tracer.dst_ip.is_ipv4() {
-                    if let Some(packet) = pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len]) {
+                    if let Some(packet) =
+                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                    {
                         let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
                         if let Some(icmp) = icmp_packet {
                             let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
@@ -105,7 +107,7 @@ pub(crate) fn trace_route(
                                     let node = Node {
                                         seq: ttl,
                                         ip_addr: ip_addr,
-                                        host_name: String::new(),
+                                        host_name: ip_addr.to_string(),
                                         ttl: Some(packet.get_ttl()),
                                         hop: Some(ttl),
                                         node_type: if ttl == 1 {
@@ -129,7 +131,7 @@ pub(crate) fn trace_route(
                                     let node = Node {
                                         seq: ttl,
                                         ip_addr: ip_addr,
-                                        host_name: String::new(),
+                                        host_name: ip_addr.to_string(),
                                         ttl: Some(packet.get_ttl()),
                                         hop: Some(ttl),
                                         node_type: NodeType::Destination,
@@ -149,10 +151,11 @@ pub(crate) fn trace_route(
                             }
                         }
                     }
-                }else {
+                } else {
                     // IPv6 (ICMPv6 Header only)
                     // The IPv6 header is automatically cropped off when recvfrom() is used.
-                    let icmp_packet = pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len]);
+                    let icmp_packet =
+                        pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len]);
                     if let Some(icmp) = icmp_packet {
                         let ip_addr: IpAddr = src_addr;
                         match icmp.get_icmpv6_type() {
@@ -160,7 +163,7 @@ pub(crate) fn trace_route(
                                 let node = Node {
                                     seq: ttl,
                                     ip_addr: ip_addr,
-                                    host_name: String::new(),
+                                    host_name: ip_addr.to_string(),
                                     ttl: None,
                                     hop: Some(ttl),
                                     node_type: if ttl == 1 {
@@ -184,7 +187,7 @@ pub(crate) fn trace_route(
                                 let node = Node {
                                     seq: ttl,
                                     ip_addr: ip_addr,
-                                    host_name: String::new(),
+                                    host_name: ip_addr.to_string(),
                                     ttl: None,
                                     hop: Some(ttl),
                                     node_type: NodeType::Destination,
@@ -210,9 +213,11 @@ pub(crate) fn trace_route(
         thread::sleep(tracer.send_rate);
     }
     for node in &mut nodes {
-        let host_name: String =
-            dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
-        node.host_name = host_name;
+        if node.node_type == NodeType::Destination {
+            let host_name: String =
+                dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
+            node.host_name = host_name;
+        }
     }
     let result: TraceResult = TraceResult {
         nodes: nodes,
