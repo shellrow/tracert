@@ -11,11 +11,11 @@ categories = ["network-programming"]
 license = "MIT"
 
 [dependencies]
-socket2 = { version = "0.5.3", features = ["all"] }
-pnet_packet = "0.33.0"
-dns-lookup = "2.0.2"
-default-net = "0.16.2"
-rand = "0.8.5"
+socket2 = { version = "0.5", features = ["all"] }
+pnet_packet = "0.34"
+dns-lookup = "2.0"
+default-net = "0.17"
+rand = "0.8"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0"
