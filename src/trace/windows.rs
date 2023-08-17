@@ -3,17 +3,17 @@ use super::{TraceResult, TraceStatus, Tracer};
 use crate::node::{Node, NodeType};
 use crate::sys;
 use pnet_packet::icmp::IcmpTypes;
-use pnet_packet::Packet;
 use pnet_packet::icmpv6::Icmpv6Types;
-use socket2::{SockAddr, Domain, Protocol, Socket, Type};
+use pnet_packet::Packet;
+use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::collections::HashSet;
 use std::mem::MaybeUninit;
-use std::net::{IpAddr, SocketAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use windows_sys::Win32::Networking::WinSock::{AF_INET, AF_INET6, IPPROTO_IP, IPPROTO_ICMPV6};
+use windows_sys::Win32::Networking::WinSock::{AF_INET, AF_INET6, IPPROTO_ICMPV6, IPPROTO_IP};
 use windows_sys::Win32::Networking::WinSock::{SOCKET, SOCK_RAW, SOL_SOCKET, SO_RCVTIMEO};
 
 pub(crate) fn trace_route(
@@ -78,7 +78,7 @@ pub(crate) fn trace_route(
                     return Err(format!("{}", e));
                 }
             }
-        }else {
+        } else {
             match udp_socket.set_unicast_hops_v6(ttl as u32) {
                 Ok(_) => (),
                 Err(e) => {
@@ -98,8 +98,13 @@ pub(crate) fn trace_route(
                     return Err(format!("{}", e));
                 }
             }
-        }else{
-            let udp_packet = crate::packet::build_udp_probe_packet(tracer.src_ip, crate::packet::DEFAULT_SRC_PORT, tracer.dst_ip, BASE_DST_PORT + ttl as u16);
+        } else {
+            let udp_packet = crate::packet::build_udp_probe_packet(
+                tracer.src_ip,
+                crate::packet::DEFAULT_SRC_PORT,
+                tracer.dst_ip,
+                BASE_DST_PORT + ttl as u16,
+            );
             match udp_socket.send_to(&udp_packet, &SockAddr::from(dst)) {
                 Ok(_) => (),
                 Err(e) => {
@@ -181,10 +186,11 @@ pub(crate) fn trace_route(
                                 }
                             }
                         }
-                    }else{
+                    } else {
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
-                        let icmp_packet = pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len]);
+                        let icmp_packet =
+                            pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len]);
                         if let Some(icmp) = icmp_packet {
                             let ip_addr: IpAddr = src_addr;
                             match icmp.get_icmpv6_type() {
@@ -246,7 +252,8 @@ pub(crate) fn trace_route(
     }
     for node in &mut nodes {
         if node.node_type == NodeType::Destination {
-            let host_name: String = dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
+            let host_name: String =
+                dns_lookup::lookup_addr(&node.ip_addr).unwrap_or(node.ip_addr.to_string());
             node.host_name = host_name;
         }
     }

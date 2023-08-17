@@ -5,11 +5,11 @@ use crate::protocol::Protocol as ProbeProtocol;
 use crate::sys;
 use crate::trace::BASE_DST_PORT;
 use pnet_packet::icmp::IcmpTypes;
-use pnet_packet::Packet;
 use pnet_packet::icmpv6::Icmpv6Types;
+use pnet_packet::Packet;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::mem::MaybeUninit;
-use std::net::{IpAddr, SocketAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -105,7 +105,7 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                                 }
                             }
                         }
-                    }else {
+                    } else {
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
                         if let Some(icmp_packet) =
@@ -260,7 +260,7 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                     return Err(format!("{}", e));
                 }
             }
-        }else {
+        } else {
             match udp_socket.set_unicast_hops_v6(pinger.ttl as u32) {
                 Ok(_) => (),
                 Err(e) => {
@@ -324,7 +324,7 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                                 }
                             }
                         }
-                    }else{
+                    } else {
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
                         if let Some(icmp_packet) =
