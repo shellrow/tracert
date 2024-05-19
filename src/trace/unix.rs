@@ -1,9 +1,9 @@
 use super::BASE_DST_PORT;
 use super::{TraceResult, TraceStatus, Tracer};
 use crate::node::{Node, NodeType};
-use pnet_packet::icmp::IcmpTypes;
-use pnet_packet::icmpv6::Icmpv6Types;
-use pnet_packet::Packet;
+use nex_packet::icmp::IcmpType;
+use nex_packet::icmpv6::Icmpv6Type;
+use nex_packet::Packet;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::collections::HashSet;
 use std::mem::MaybeUninit;
@@ -97,13 +97,13 @@ pub(crate) fn trace_route(
                 let recv_buf = unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
                 if tracer.dst_ip.is_ipv4() {
                     if let Some(packet) =
-                        pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                    nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
                     {
-                        let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
+                        let icmp_packet = nex_packet::icmp::IcmpPacket::new(packet.payload());
                         if let Some(icmp) = icmp_packet {
                             let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
                             match icmp.get_icmp_type() {
-                                IcmpTypes::TimeExceeded => {
+                                IcmpType::TimeExceeded => {
                                     let node = Node {
                                         seq: ttl,
                                         ip_addr: ip_addr,
@@ -127,7 +127,7 @@ pub(crate) fn trace_route(
                                     }
                                     ip_set.insert(ip_addr);
                                 }
-                                IcmpTypes::DestinationUnreachable => {
+                                IcmpType::DestinationUnreachable => {
                                     let node = Node {
                                         seq: ttl,
                                         ip_addr: ip_addr,
@@ -155,11 +155,11 @@ pub(crate) fn trace_route(
                     // IPv6 (ICMPv6 Header only)
                     // The IPv6 header is automatically cropped off when recvfrom() is used.
                     let icmp_packet =
-                        pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len]);
+                    nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len]);
                     if let Some(icmp) = icmp_packet {
                         let ip_addr: IpAddr = src_addr;
                         match icmp.get_icmpv6_type() {
-                            Icmpv6Types::TimeExceeded => {
+                            Icmpv6Type::TimeExceeded => {
                                 let node = Node {
                                     seq: ttl,
                                     ip_addr: ip_addr,
@@ -183,7 +183,7 @@ pub(crate) fn trace_route(
                                 }
                                 ip_set.insert(ip_addr);
                             }
-                            Icmpv6Types::DestinationUnreachable => {
+                            Icmpv6Type::DestinationUnreachable => {
                                 let node = Node {
                                     seq: ttl,
                                     ip_addr: ip_addr,

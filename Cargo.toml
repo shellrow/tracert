@@ -12,9 +12,9 @@ license = "MIT"
 
 [dependencies]
 socket2 = { version = "0.5", features = ["all"] }
-pnet_packet = "0.34"
+nex-packet = "0.10"
 dns-lookup = "2.0"
-default-net = "0.17"
+netdev = "0.26"
 rand = "0.8"
 
 [target.'cfg(windows)'.dependencies.windows-sys]

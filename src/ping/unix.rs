@@ -4,9 +4,9 @@ use crate::packet;
 use crate::protocol::Protocol as ProbeProtocol;
 use crate::sys;
 use crate::trace::BASE_DST_PORT;
-use pnet_packet::icmp::IcmpTypes;
-use pnet_packet::icmpv6::Icmpv6Types;
-use pnet_packet::Packet;
+use nex_packet::icmp::IcmpType;
+use nex_packet::icmpv6::Icmpv6Type;
+use nex_packet::Packet;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::mem::MaybeUninit;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -72,13 +72,13 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                         unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
                     if pinger.dst_ip.is_ipv4() {
                         if let Some(packet) =
-                            pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                        nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
                         {
-                            let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
+                            let icmp_packet = nex_packet::icmp::IcmpPacket::new(packet.payload());
                             if let Some(icmp) = icmp_packet {
                                 let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
                                 match icmp.get_icmp_type() {
-                                    IcmpTypes::EchoReply => {
+                                    IcmpType::EchoReply => {
                                         let node = Node {
                                             seq: seq,
                                             ip_addr: ip_addr,
@@ -109,11 +109,11 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
                         if let Some(icmp_packet) =
-                            pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
+                        nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
                         {
                             let ip_addr: IpAddr = pinger.dst_ip;
                             match icmp_packet.get_icmpv6_type() {
-                                Icmpv6Types::EchoReply => {
+                                Icmpv6Type::EchoReply => {
                                     let node = Node {
                                         seq: seq,
                                         ip_addr: ip_addr,
@@ -291,13 +291,13 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                         unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
                     if pinger.dst_ip.is_ipv4() {
                         if let Some(packet) =
-                            pnet_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                        nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
                         {
-                            let icmp_packet = pnet_packet::icmp::IcmpPacket::new(packet.payload());
+                            let icmp_packet = nex_packet::icmp::IcmpPacket::new(packet.payload());
                             if let Some(icmp) = icmp_packet {
                                 let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
                                 match icmp.get_icmp_type() {
-                                    IcmpTypes::DestinationUnreachable => {
+                                    IcmpType::DestinationUnreachable => {
                                         let node = Node {
                                             seq: seq,
                                             ip_addr: ip_addr,
@@ -328,11 +328,11 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
                         if let Some(icmp_packet) =
-                            pnet_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
+                        nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
                         {
                             let ip_addr: IpAddr = pinger.dst_ip;
                             match icmp_packet.get_icmpv6_type() {
-                                Icmpv6Types::DestinationUnreachable => {
+                                Icmpv6Type::DestinationUnreachable => {
                                     let node = Node {
                                         seq: seq,
                                         ip_addr: ip_addr,
