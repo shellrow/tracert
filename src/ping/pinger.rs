@@ -42,7 +42,7 @@ pub struct Pinger {
 impl Pinger {
     /// Create new Pinger instance with destination IP address
     pub fn new(dst_ip: IpAddr) -> Result<Pinger, String> {
-        match default_net::get_default_interface() {
+        match netdev::get_default_interface() {
             Ok(interface) => {
                 let src_ip: IpAddr = if dst_ip.is_ipv4() && interface.ipv4.len() > 0 {
                     IpAddr::V4(interface.ipv4[0].addr)
