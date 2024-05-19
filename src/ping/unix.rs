@@ -72,7 +72,7 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                         unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
                     if pinger.dst_ip.is_ipv4() {
                         if let Some(packet) =
-                        nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                            nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
                         {
                             let icmp_packet = nex_packet::icmp::IcmpPacket::new(packet.payload());
                             if let Some(icmp) = icmp_packet {
@@ -109,7 +109,7 @@ fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
                         if let Some(icmp_packet) =
-                        nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
+                            nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
                         {
                             let ip_addr: IpAddr = pinger.dst_ip;
                             match icmp_packet.get_icmpv6_type() {
@@ -291,7 +291,7 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                         unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
                     if pinger.dst_ip.is_ipv4() {
                         if let Some(packet) =
-                        nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                            nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
                         {
                             let icmp_packet = nex_packet::icmp::IcmpPacket::new(packet.payload());
                             if let Some(icmp) = icmp_packet {
@@ -328,7 +328,7 @@ fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult,
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
                         if let Some(icmp_packet) =
-                        nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
+                            nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
                         {
                             let ip_addr: IpAddr = pinger.dst_ip;
                             match icmp_packet.get_icmpv6_type() {

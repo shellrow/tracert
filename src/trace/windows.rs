@@ -130,7 +130,7 @@ pub(crate) fn trace_route(
                         unsafe { *(recv_buf as *mut [MaybeUninit<u8>] as *mut [u8; 512]) };
                     if tracer.dst_ip.is_ipv4() {
                         if let Some(packet) =
-                        nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
+                            nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len])
                         {
                             let icmp_packet = nex_packet::icmp::IcmpPacket::new(packet.payload());
                             if let Some(icmp) = icmp_packet {
@@ -190,7 +190,7 @@ pub(crate) fn trace_route(
                         // IPv6 (ICMPv6 Header only)
                         // The IPv6 header is automatically cropped off when recvfrom() is used.
                         let icmp_packet =
-                        nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len]);
+                            nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len]);
                         if let Some(icmp) = icmp_packet {
                             let ip_addr: IpAddr = src_addr;
                             match icmp.get_icmpv6_type() {
