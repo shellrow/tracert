@@ -76,7 +76,11 @@ pub(crate) fn create_socket(family: c_int, mut ty: c_int, protocol: c_int) -> io
 }
 
 pub(crate) fn bind(socket: SOCKET, addr: &SockAddr) -> io::Result<()> {
-    syscall!(bind(socket, addr.as_ptr(), addr.len()), PartialEq::ne, 0).map(|_| ())
+    // Convert the SockAddr reference to a raw pointer, which is required by the Windows API,
+    // and pass it to the `bind` function to associate the socket with the provided address.
+    // This is necessary for compatibility with the `windows-sys` crate.
+    let sockaddr = addr.as_ptr() as *const _;
+    syscall!(bind(socket, sockaddr, addr.len()), PartialEq::ne, 0).map(|_| ())
 }
 
 #[allow(dead_code)]
