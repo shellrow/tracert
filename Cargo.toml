@@ -12,13 +12,13 @@ license = "MIT"
 
 [dependencies]
 socket2 = { version = "0.5", features = ["all"] }
-nex-packet = "0.10"
+nex-packet = "0.19"
 dns-lookup = "2.0"
-netdev = "0.26"
+netdev = "0.34"
 rand = "0.8"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.52.0"
+version = "0.59.0"
 features = [
   "Win32_Foundation",
   "Win32_Networking_WinSock",
