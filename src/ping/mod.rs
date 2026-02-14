@@ -1,15 +1,7 @@
-#[cfg(not(target_os = "windows"))]
-mod unix;
-#[cfg(not(target_os = "windows"))]
-use unix::ping;
-
-#[cfg(target_os = "windows")]
-mod windows;
-#[cfg(target_os = "windows")]
-use self::windows::ping;
-
 mod pinger;
+mod probe;
 pub use pinger::*;
+pub(crate) use probe::ping;
 
 use crate::node::Node;
 use std::time::Duration;
@@ -34,4 +26,14 @@ pub struct PingResult {
     pub status: PingStatus,
     /// The entire ping probe time
     pub probe_time: Duration,
+}
+
+pub(crate) fn guess_initial_ttl(ttl: u8) -> u8 {
+    if ttl <= 64 {
+        64
+    } else if 64 < ttl && ttl <= 128 {
+        128
+    } else {
+        255
+    }
 }

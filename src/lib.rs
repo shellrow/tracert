@@ -2,5 +2,5 @@ pub mod node;
 mod packet;
 pub mod ping;
 pub mod protocol;
-mod sys;
+mod socket;
 pub mod trace;

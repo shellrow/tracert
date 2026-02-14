@@ -5,9 +5,12 @@
 
 # tracert [![Crates.io][crates-badge]][crates-url] ![License][license-badge]
 Cross-platform library for traceroute and ping. Written in Rust.
+tokio-based asynchronous probing is supported for all features.
 
 ## Features
 - traceroute
+    - [x] IPv4 ICMP
+    - [x] IPv6 ICMP
     - [x] IPv4 UDP
     - [x] IPv6 UDP
 - ping
@@ -22,8 +25,16 @@ Cross-platform library for traceroute and ping. Written in Rust.
 Add `tracert` to your dependencies
 ```
 [dependencies]
-tracert = "0.9"
+tracert = "0.10"
 ```
+
+## Examples
+- `examples/icmp_ping.rs`
+- `examples/icmp_trace.rs`
+- `examples/tcp_ping.rs`
+- `examples/udp_ping.rs`
+- `examples/udp_trace.rs`
+- `examples/parallel_trace.rs`
 
 ## Note for Windows users
 You may need to set up firewall rules that allow `ICMP Time-to-live Exceeded` and `ICMP Destination (Port) Unreachable` packets to be received.
@@ -35,4 +46,9 @@ netsh advfirewall firewall add rule name="All ICMP v6" dir=in action=allow proto
 ```
 
 ## Additional Notes
-This library requires the ability to create raw sockets. Execute with administrator privileges.
+This library may require the ability to create raw sockets depending on the operating system.
+
+- Linux: root privileges or CAP_NET_RAW capability are typically required.
+- macOS / Windows: Administrator privileges are usually not required for standard traceroute operations.
+
+If you encounter permission errors, try running with elevated privileges.

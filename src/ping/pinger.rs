@@ -2,9 +2,8 @@ use super::PingResult;
 use crate::node::Node;
 use crate::protocol::Protocol;
 use std::net::IpAddr;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio::sync::broadcast;
 
 /// Pinger structure
 ///
@@ -34,9 +33,7 @@ pub struct Pinger {
     /// Packet send rate
     pub send_rate: Duration,
     /// Sender for progress messaging
-    pub tx: Arc<Mutex<Sender<Node>>>,
-    /// Receiver for progress messaging
-    pub rx: Arc<Mutex<Receiver<Node>>>,
+    pub tx: broadcast::Sender<Node>,
 }
 
 impl Pinger {
@@ -53,7 +50,7 @@ impl Pinger {
                         return Err(String::from("Failed to get default interface"));
                     }
                 };
-                let (tx, rx) = channel();
+                let (tx, _) = broadcast::channel(256);
                 let pinger = Pinger {
                     src_ip: src_ip,
                     dst_ip: dst_ip,
@@ -64,8 +61,7 @@ impl Pinger {
                     ping_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
                     send_rate: Duration::from_millis(1000),
-                    tx: Arc::new(Mutex::new(tx)),
-                    rx: Arc::new(Mutex::new(rx)),
+                    tx,
                 };
                 return Ok(pinger);
             }
@@ -76,7 +72,15 @@ impl Pinger {
     }
     /// Run ping
     pub fn ping(&self) -> Result<PingResult, String> {
-        super::ping(self.clone(), &self.tx)
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_time()
+            .build()
+            .map_err(|e| e.to_string())?;
+        runtime.block_on(self.ping_async())
+    }
+    /// Run ping asynchronously
+    pub async fn ping_async(&self) -> Result<PingResult, String> {
+        super::ping(self.clone(), &self.tx).await
     }
     /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr) {
@@ -120,7 +124,7 @@ impl Pinger {
     }
     /// Set ping execution count
     pub fn set_count(&mut self, count: u8) {
-        self.ttl = count;
+        self.count = count;
     }
     /// Get ping execution count
     pub fn get_count(&self) -> u8 {
@@ -151,7 +155,7 @@ impl Pinger {
         self.send_rate
     }
     /// Get progress receiver
-    pub fn get_progress_receiver(&self) -> Arc<Mutex<Receiver<Node>>> {
-        self.rx.clone()
+    pub fn get_progress_receiver(&self) -> broadcast::Receiver<Node> {
+        self.tx.subscribe()
     }
 }

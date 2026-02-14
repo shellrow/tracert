@@ -1,9 +1,9 @@
 use super::TraceResult;
 use crate::node::Node;
+use crate::protocol::Protocol;
 use std::net::IpAddr;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio::sync::broadcast;
 
 pub(crate) const BASE_DST_PORT: u16 = 33435;
 
@@ -16,6 +16,8 @@ pub struct Tracer {
     pub src_ip: IpAddr,
     /// Destination IP address
     pub dst_ip: IpAddr,
+    /// Protocol used for traceroute
+    pub protocol: Protocol,
     /// Max hop
     pub max_hop: u8,
     /// Timeout setting for trace   
@@ -25,9 +27,7 @@ pub struct Tracer {
     /// Packet send rate
     pub send_rate: Duration,
     /// Sender for progress messaging
-    pub tx: Arc<Mutex<Sender<Node>>>,
-    /// Receiver for progress messaging
-    pub rx: Arc<Mutex<Receiver<Node>>>,
+    pub tx: broadcast::Sender<Node>,
 }
 
 impl Tracer {
@@ -44,16 +44,16 @@ impl Tracer {
                         return Err(String::from("Failed to get default interface"));
                     }
                 };
-                let (tx, rx) = channel();
+                let (tx, _) = broadcast::channel(256);
                 let tracer = Tracer {
                     src_ip: src_ip,
                     dst_ip: dst_ip,
+                    protocol: Protocol::Udp,
                     max_hop: 64,
                     trace_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
                     send_rate: Duration::from_millis(0),
-                    tx: Arc::new(Mutex::new(tx)),
-                    rx: Arc::new(Mutex::new(rx)),
+                    tx,
                 };
                 return Ok(tracer);
             }
@@ -64,7 +64,15 @@ impl Tracer {
     }
     /// Trace route to destination
     pub fn trace(&self) -> Result<TraceResult, String> {
-        super::trace_route(self.clone(), &self.tx)
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_time()
+            .build()
+            .map_err(|e| e.to_string())?;
+        runtime.block_on(self.trace_async())
+    }
+    /// Trace route to destination asynchronously
+    pub async fn trace_async(&self) -> Result<TraceResult, String> {
+        super::trace_route(self.clone(), &self.tx).await
     }
     /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr) {
@@ -81,6 +89,14 @@ impl Tracer {
     /// Get destination IP address
     pub fn get_dst_ip(&self) -> IpAddr {
         self.dst_ip
+    }
+    /// Set protocol
+    pub fn set_protocol(&mut self, protocol: Protocol) {
+        self.protocol = protocol;
+    }
+    /// Get protocol
+    pub fn get_protocol(&self) -> Protocol {
+        self.protocol.clone()
     }
     /// Set max hop
     pub fn set_max_hop(&mut self, max_hop: u8) {
@@ -115,7 +131,7 @@ impl Tracer {
         self.send_rate
     }
     /// Get progress receiver
-    pub fn get_progress_receiver(&self) -> Arc<Mutex<Receiver<Node>>> {
-        self.rx.clone()
+    pub fn get_progress_receiver(&self) -> broadcast::Receiver<Node> {
+        self.tx.subscribe()
     }
 }

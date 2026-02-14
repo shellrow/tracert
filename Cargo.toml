@@ -1,8 +1,8 @@
 [package]
 name = "tracert"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2021"
-authors = ["shellrow <shellrow@protonmail.com>"]
+authors = ["shellrow <shellrow@foctal.com>"]
 description = "Cross-platform library for traceroute and ping"
 repository = "https://github.com/shellrow/tracert"
 readme = "README.md"
@@ -14,15 +14,9 @@ license = "MIT"
 socket2 = { version = "0.5", features = ["all"] }
 nex-packet = "0.19"
 dns-lookup = "2.0"
-netdev = "0.34"
+netdev = "0.40"
 rand = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "net", "sync"] }
 
-[target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.59.0"
-features = [
-  "Win32_Foundation",
-  "Win32_Networking_WinSock",
-  "Win32_System_IO",
-  "Win32_System_Threading",
-  "Win32_System_WindowsProgramming",
-]
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "signal", "macros"] }
