@@ -1,5 +1,6 @@
 use super::TraceResult;
 use crate::node::Node;
+use crate::protocol::Protocol;
 use std::net::IpAddr;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -16,6 +17,8 @@ pub struct Tracer {
     pub src_ip: IpAddr,
     /// Destination IP address
     pub dst_ip: IpAddr,
+    /// Protocol used for traceroute
+    pub protocol: Protocol,
     /// Max hop
     pub max_hop: u8,
     /// Timeout setting for trace   
@@ -48,6 +51,7 @@ impl Tracer {
                 let tracer = Tracer {
                     src_ip: src_ip,
                     dst_ip: dst_ip,
+                    protocol: Protocol::Udp,
                     max_hop: 64,
                     trace_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
@@ -64,7 +68,15 @@ impl Tracer {
     }
     /// Trace route to destination
     pub fn trace(&self) -> Result<TraceResult, String> {
-        super::trace_route(self.clone(), &self.tx)
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_time()
+            .build()
+            .map_err(|e| e.to_string())?;
+        runtime.block_on(self.trace_async())
+    }
+    /// Trace route to destination asynchronously
+    pub async fn trace_async(&self) -> Result<TraceResult, String> {
+        super::trace_route(self.clone(), &self.tx).await
     }
     /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr) {
@@ -81,6 +93,14 @@ impl Tracer {
     /// Get destination IP address
     pub fn get_dst_ip(&self) -> IpAddr {
         self.dst_ip
+    }
+    /// Set protocol
+    pub fn set_protocol(&mut self, protocol: Protocol) {
+        self.protocol = protocol;
+    }
+    /// Get protocol
+    pub fn get_protocol(&self) -> Protocol {
+        self.protocol.clone()
     }
     /// Set max hop
     pub fn set_max_hop(&mut self, max_hop: u8) {

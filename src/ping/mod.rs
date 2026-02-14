@@ -1,15 +1,7 @@
-#[cfg(not(target_os = "windows"))]
-mod unix;
-#[cfg(not(target_os = "windows"))]
-use unix::ping;
-
-#[cfg(target_os = "windows")]
-mod windows;
-#[cfg(target_os = "windows")]
-use self::windows::ping;
-
 mod pinger;
+mod probe;
 pub use pinger::*;
+pub(crate) use probe::ping;
 
 use crate::node::Node;
 use std::time::Duration;

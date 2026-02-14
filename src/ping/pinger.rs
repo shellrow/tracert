@@ -76,7 +76,15 @@ impl Pinger {
     }
     /// Run ping
     pub fn ping(&self) -> Result<PingResult, String> {
-        super::ping(self.clone(), &self.tx)
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_time()
+            .build()
+            .map_err(|e| e.to_string())?;
+        runtime.block_on(self.ping_async())
+    }
+    /// Run ping asynchronously
+    pub async fn ping_async(&self) -> Result<PingResult, String> {
+        super::ping(self.clone(), &self.tx).await
     }
     /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr) {
@@ -120,7 +128,7 @@ impl Pinger {
     }
     /// Set ping execution count
     pub fn set_count(&mut self, count: u8) {
-        self.ttl = count;
+        self.count = count;
     }
     /// Get ping execution count
     pub fn get_count(&self) -> u8 {
