@@ -6,7 +6,6 @@ use crate::socket::icmp::{AsyncIcmpSocket, IcmpConfig};
 use crate::socket::tcp::{AsyncTcpSocket, TcpConfig};
 use crate::socket::udp::{AsyncUdpSocket, UdpConfig};
 use crate::socket::SocketFamily;
-use crate::sys;
 use nex_packet::icmp::IcmpType;
 use nex_packet::icmpv6::Icmpv6Type;
 use nex_packet::Packet;
@@ -107,7 +106,7 @@ async fn icmp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingR
                 ip_addr,
                 host_name: host_name.clone(),
                 ttl,
-                hop: ttl.map(|v| sys::guess_initial_ttl(v) - v),
+                hop: ttl.map(|v| super::guess_initial_ttl(v) - v),
                 node_type: NodeType::Destination,
                 rtt: recv_time,
             };
@@ -256,7 +255,7 @@ async fn udp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingRe
                 ip_addr,
                 host_name: host_name.clone(),
                 ttl,
-                hop: ttl.map(|v| sys::guess_initial_ttl(v) - v),
+                hop: ttl.map(|v| super::guess_initial_ttl(v) - v),
                 node_type: NodeType::Destination,
                 rtt: recv_time,
             };
