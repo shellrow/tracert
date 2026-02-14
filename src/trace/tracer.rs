@@ -2,9 +2,8 @@ use super::TraceResult;
 use crate::node::Node;
 use crate::protocol::Protocol;
 use std::net::IpAddr;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio::sync::broadcast;
 
 pub(crate) const BASE_DST_PORT: u16 = 33435;
 
@@ -28,9 +27,7 @@ pub struct Tracer {
     /// Packet send rate
     pub send_rate: Duration,
     /// Sender for progress messaging
-    pub tx: Arc<Mutex<Sender<Node>>>,
-    /// Receiver for progress messaging
-    pub rx: Arc<Mutex<Receiver<Node>>>,
+    pub tx: broadcast::Sender<Node>,
 }
 
 impl Tracer {
@@ -47,7 +44,7 @@ impl Tracer {
                         return Err(String::from("Failed to get default interface"));
                     }
                 };
-                let (tx, rx) = channel();
+                let (tx, _) = broadcast::channel(256);
                 let tracer = Tracer {
                     src_ip: src_ip,
                     dst_ip: dst_ip,
@@ -56,8 +53,7 @@ impl Tracer {
                     trace_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
                     send_rate: Duration::from_millis(0),
-                    tx: Arc::new(Mutex::new(tx)),
-                    rx: Arc::new(Mutex::new(rx)),
+                    tx,
                 };
                 return Ok(tracer);
             }
@@ -135,7 +131,7 @@ impl Tracer {
         self.send_rate
     }
     /// Get progress receiver
-    pub fn get_progress_receiver(&self) -> Arc<Mutex<Receiver<Node>>> {
-        self.rx.clone()
+    pub fn get_progress_receiver(&self) -> broadcast::Receiver<Node> {
+        self.tx.subscribe()
     }
 }

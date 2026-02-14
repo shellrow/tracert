@@ -11,14 +11,11 @@ use nex_packet::icmp::IcmpType;
 use nex_packet::icmpv6::Icmpv6Type;
 use nex_packet::Packet;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use tokio::sync::broadcast;
 
-fn send_progress(tx: &Arc<Mutex<Sender<Node>>>, node: Node) {
-    if let Ok(lock) = tx.lock() {
-        let _ = lock.send(node);
-    }
+fn send_progress(tx: &broadcast::Sender<Node>, node: Node) {
+    let _ = tx.send(node);
 }
 
 fn recv_icmp_reply(
@@ -50,7 +47,7 @@ fn recv_icmp_reply(
     None
 }
 
-async fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
+async fn icmp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingResult, String> {
     let host_name =
         dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
@@ -130,7 +127,7 @@ async fn icmp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<Ping
     })
 }
 
-async fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
+async fn tcp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingResult, String> {
     let host_name =
         dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
@@ -189,7 +186,7 @@ async fn tcp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingR
     })
 }
 
-async fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingResult, String> {
+async fn udp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingResult, String> {
     let host_name =
         dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
@@ -281,7 +278,7 @@ async fn udp_ping(pinger: Pinger, tx: &Arc<Mutex<Sender<Node>>>) -> Result<PingR
 
 pub(crate) async fn ping(
     pinger: Pinger,
-    tx: &Arc<Mutex<Sender<Node>>>,
+    tx: &broadcast::Sender<Node>,
 ) -> Result<PingResult, String> {
     match pinger.protocol {
         ProbeProtocol::Icmpv4 => icmp_ping(pinger, tx).await,

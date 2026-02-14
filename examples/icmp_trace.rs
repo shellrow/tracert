@@ -18,12 +18,12 @@ async fn main() {
         Protocol::Icmpv6
     });
 
-    let rx = tracer.get_progress_receiver();
+    let mut rx = tracer.get_progress_receiver();
     let handle = tokio::spawn(async move { tracer.trace_async().await });
 
     println!("Progress:");
     while !handle.is_finished() {
-        let msg = rx.lock().unwrap().try_recv();
+        let msg = rx.try_recv();
         if let Ok(msg) = msg {
             println!("{} {} {:?} {:?}", msg.seq, msg.ip_addr, msg.hop, msg.rtt);
         } else {
@@ -31,7 +31,7 @@ async fn main() {
         }
     }
 
-    while let Ok(msg) = rx.lock().unwrap().try_recv() {
+    while let Ok(msg) = rx.try_recv() {
         println!("{} {} {:?} {:?}", msg.seq, msg.ip_addr, msg.hop, msg.rtt);
     }
 

@@ -10,13 +10,13 @@ async fn main() {
     // IPv6 UDP traceroute to dns.google (2001:4860:4860::8888)
     //let dst_ip: IpAddr = IpAddr::V6(Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888));
     let tracer: Tracer = Tracer::new(dst_ip).unwrap();
-    let rx = tracer.get_progress_receiver();
+    let mut rx = tracer.get_progress_receiver();
 
     let handle = tokio::spawn(async move { tracer.trace_async().await });
 
     println!("Progress:");
     while !handle.is_finished() {
-        let msg = rx.lock().unwrap().try_recv();
+        let msg = rx.try_recv();
         if let Ok(msg) = msg {
             println!("{} {} {:?} {:?}", msg.seq, msg.ip_addr, msg.hop, msg.rtt);
         } else {
@@ -24,7 +24,7 @@ async fn main() {
         }
     }
 
-    while let Ok(msg) = rx.lock().unwrap().try_recv() {
+    while let Ok(msg) = rx.try_recv() {
         println!("{} {} {:?} {:?}", msg.seq, msg.ip_addr, msg.hop, msg.rtt);
     }
 

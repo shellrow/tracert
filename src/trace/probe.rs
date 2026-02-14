@@ -11,14 +11,11 @@ use nex_packet::icmpv6::Icmpv6Type;
 use nex_packet::Packet;
 use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use tokio::sync::broadcast;
 
-fn send_progress(tx: &Arc<Mutex<Sender<Node>>>, node: Node) {
-    if let Ok(lock) = tx.lock() {
-        let _ = lock.send(node);
-    }
+fn send_progress(tx: &broadcast::Sender<Node>, node: Node) {
+    let _ = tx.send(node);
 }
 
 fn parse_trace_reply(
@@ -55,7 +52,7 @@ fn parse_trace_reply(
     None
 }
 
-async fn trace_icmp(tracer: Tracer, tx: &Arc<Mutex<Sender<Node>>>) -> Result<TraceResult, String> {
+async fn trace_icmp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<TraceResult, String> {
     let mut nodes: Vec<Node> = vec![];
     let mut ip_set: HashSet<IpAddr> = HashSet::new();
     let family = SocketFamily::from_ip(&tracer.dst_ip);
@@ -154,7 +151,7 @@ async fn trace_icmp(tracer: Tracer, tx: &Arc<Mutex<Sender<Node>>>) -> Result<Tra
     })
 }
 
-async fn trace_udp(tracer: Tracer, tx: &Arc<Mutex<Sender<Node>>>) -> Result<TraceResult, String> {
+async fn trace_udp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<TraceResult, String> {
     let mut nodes: Vec<Node> = vec![];
     let mut ip_set: HashSet<IpAddr> = HashSet::new();
     let family = SocketFamily::from_ip(&tracer.dst_ip);
@@ -268,7 +265,7 @@ async fn trace_udp(tracer: Tracer, tx: &Arc<Mutex<Sender<Node>>>) -> Result<Trac
 
 pub(crate) async fn trace_route(
     tracer: Tracer,
-    tx: &Arc<Mutex<Sender<Node>>>,
+    tx: &broadcast::Sender<Node>,
 ) -> Result<TraceResult, String> {
     match tracer.protocol {
         Protocol::Udp => trace_udp(tracer, tx).await,

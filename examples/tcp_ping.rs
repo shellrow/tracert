@@ -13,13 +13,13 @@ async fn main() {
     let mut pinger: Pinger = Pinger::new(dst_ip).unwrap();
     pinger.set_protocol(tracert::protocol::Protocol::Tcp);
     pinger.set_dst_port(port);
-    let rx = pinger.get_progress_receiver();
+    let mut rx = pinger.get_progress_receiver();
 
     let handle = tokio::spawn(async move { pinger.ping_async().await });
 
     println!("Progress:");
     while !handle.is_finished() {
-        let msg = rx.lock().unwrap().try_recv();
+        let msg = rx.try_recv();
         if let Ok(msg) = msg {
             println!(
                 "{} {}:{} {:?} {:?}",
@@ -30,7 +30,7 @@ async fn main() {
         }
     }
 
-    while let Ok(msg) = rx.lock().unwrap().try_recv() {
+    while let Ok(msg) = rx.try_recv() {
         println!(
             "{} {}:{} {:?} {:?}",
             msg.seq, msg.ip_addr, port, msg.hop, msg.rtt
