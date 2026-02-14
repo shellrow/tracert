@@ -25,7 +25,7 @@ tokio-based asynchronous probing is supported for all features.
 Add `tracert` to your dependencies
 ```
 [dependencies]
-tracert = "0.9"
+tracert = "0.10"
 ```
 
 ## Examples
