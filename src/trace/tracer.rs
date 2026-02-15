@@ -7,31 +7,31 @@ use tokio::sync::broadcast;
 
 pub(crate) const BASE_DST_PORT: u16 = 33435;
 
-/// Tracer structure
-///
-/// Holds runtime settings used by traceroute probes.
+/// Configuration and execution context for traceroute probes.
 #[derive(Clone, Debug)]
 pub struct Tracer {
-    /// Source IP address
+    /// Source IP address used to send probes.
     pub src_ip: IpAddr,
-    /// Destination IP address
+    /// Destination IP address.
     pub dst_ip: IpAddr,
-    /// Protocol used for traceroute
+    /// Protocol used to send probes.
     pub protocol: Protocol,
-    /// Maximum hop count
+    /// Maximum hop count.
     pub max_hop: u8,
-    /// Overall timeout for traceroute execution
+    /// Overall timeout for a full traceroute run.
     pub trace_timeout: Duration,
-    /// Timeout for receiving each packet
+    /// Timeout for receiving each probe response.
     pub receive_timeout: Duration,
-    /// Packet send interval
+    /// Delay between consecutive probes.
     pub send_interval: Duration,
-    /// Sender for progress messaging
+    /// Broadcast sender for per-probe progress events.
     pub progress_tx: broadcast::Sender<Node>,
 }
 
 impl Tracer {
-    /// Create a new tracer for the destination IP address
+    /// Creates a new `Tracer` for the destination address.
+    ///
+    /// The source address is inferred from the default interface.
     pub fn new(dst_ip: IpAddr) -> Result<Tracer, String> {
         match netdev::get_default_interface() {
             Ok(interface) => {
@@ -62,7 +62,7 @@ impl Tracer {
             }
         }
     }
-    /// Run traceroute synchronously
+    /// Runs traceroute synchronously.
     pub fn trace(&self) -> Result<TraceResult, String> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_time()
@@ -70,67 +70,67 @@ impl Tracer {
             .map_err(|e| e.to_string())?;
         runtime.block_on(self.trace_async())
     }
-    /// Run traceroute asynchronously
+    /// Runs traceroute asynchronously.
     pub async fn trace_async(&self) -> Result<TraceResult, String> {
         super::trace_route(self.clone(), &self.progress_tx).await
     }
-    /// Set source IP address
+    /// Sets the source IP address.
     pub fn set_src_ip(&mut self, src_ip: IpAddr) {
         self.src_ip = src_ip;
     }
-    /// Get source IP address
+    /// Returns the source IP address.
     pub fn get_src_ip(&self) -> IpAddr {
         self.src_ip
     }
-    /// Set destination IP address
+    /// Sets the destination IP address.
     pub fn set_dst_ip(&mut self, dst_ip: IpAddr) {
         self.dst_ip = dst_ip;
     }
-    /// Get destination IP address
+    /// Returns the destination IP address.
     pub fn get_dst_ip(&self) -> IpAddr {
         self.dst_ip
     }
-    /// Set protocol
+    /// Sets the probe protocol.
     pub fn set_protocol(&mut self, protocol: Protocol) {
         self.protocol = protocol;
     }
-    /// Get protocol
+    /// Returns the probe protocol.
     pub fn get_protocol(&self) -> Protocol {
         self.protocol.clone()
     }
-    /// Set max hop
+    /// Sets the maximum hop count.
     pub fn set_max_hop(&mut self, max_hop: u8) {
         self.max_hop = max_hop;
     }
-    /// Get max hop
+    /// Returns the maximum hop count.
     pub fn get_max_hop(&self) -> u8 {
         self.max_hop
     }
-    /// Set traceroute timeout
+    /// Sets the overall traceroute timeout.
     pub fn set_trace_timeout(&mut self, trace_timeout: Duration) {
         self.trace_timeout = trace_timeout;
     }
-    /// Get traceroute timeout
+    /// Returns the overall traceroute timeout.
     pub fn get_trace_timeout(&self) -> Duration {
         self.trace_timeout
     }
-    /// Set packet receive timeout
+    /// Sets the per-probe receive timeout.
     pub fn set_receive_timeout(&mut self, receive_timeout: Duration) {
         self.receive_timeout = receive_timeout;
     }
-    /// Get packet receive timeout
+    /// Returns the per-probe receive timeout.
     pub fn get_receive_timeout(&self) -> Duration {
         self.receive_timeout
     }
-    /// Set packet send interval
+    /// Sets the interval between probes.
     pub fn set_send_interval(&mut self, send_interval: Duration) {
         self.send_interval = send_interval;
     }
-    /// Get packet send interval
+    /// Returns the interval between probes.
     pub fn get_send_interval(&self) -> Duration {
         self.send_interval
     }
-    /// Get progress receiver
+    /// Returns a receiver for per-probe progress events.
     pub fn get_progress_receiver(&self) -> broadcast::Receiver<Node> {
         self.progress_tx.subscribe()
     }

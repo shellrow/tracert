@@ -1,12 +1,12 @@
 /// Supported probe protocols.
 #[derive(Clone, Debug)]
 pub enum Protocol {
-    /// ICMPv4
+    /// Internet Control Message Protocol v4.
     Icmpv4,
-    /// ICMPv6
+    /// Internet Control Message Protocol v6.
     Icmpv6,
-    /// TCP
+    /// Transmission Control Protocol.
     Tcp,
-    /// UDP
+    /// User Datagram Protocol.
     Udp,
 }

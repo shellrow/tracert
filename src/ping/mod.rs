@@ -6,25 +6,25 @@ pub(crate) use probe::ping;
 use crate::node::Node;
 use std::time::Duration;
 
-/// Exit status of ping
+/// Completion status of a ping run.
 #[derive(Clone, Debug)]
 pub enum PingStatus {
-    /// Successfully completed
+    /// Completed successfully.
     Done,
-    /// Interrupted by error
+    /// Ended due to an error.
     Error,
-    /// Execution time exceeds the configured timeout value
+    /// Stopped because execution exceeded the configured timeout.
     Timeout,
 }
 
-/// Result of ping
+/// Aggregated result of a ping run.
 #[derive(Clone, Debug)]
 pub struct PingResult {
-    /// Each ping results
+    /// Per-probe results.
     pub results: Vec<Node>,
-    /// Ping status
+    /// Completion status.
     pub status: PingStatus,
-    /// The entire ping probe time
+    /// Total probe time for the run.
     pub probe_time: Duration,
 }
 
