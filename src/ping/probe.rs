@@ -6,9 +6,9 @@ use crate::socket::SocketFamily;
 use crate::socket::icmp::{AsyncIcmpSocket, IcmpConfig};
 use crate::socket::tcp::{AsyncTcpSocket, TcpConfig};
 use crate::socket::udp::{AsyncUdpSocket, UdpConfig};
-use nex_packet::Packet;
 use nex_packet::icmp::IcmpType;
 use nex_packet::icmpv6::Icmpv6Type;
+use nex_packet::packet::Packet;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
@@ -23,21 +23,22 @@ fn recv_icmp_reply(
     bytes_len: usize,
 ) -> Option<(IpAddr, Option<u8>, bool)> {
     if dst_ip.is_ipv4() {
-        if let Some(packet) = nex_packet::ipv4::Ipv4Packet::new(&recv_buf[0..bytes_len]) {
-            if let Some(icmp) = nex_packet::icmp::IcmpPacket::new(packet.payload()) {
-                let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
-                match icmp.get_icmp_type() {
-                    IcmpType::EchoReply => return Some((ip_addr, Some(packet.get_ttl()), true)),
+        if let Some(packet) = nex_packet::ipv4::Ipv4Packet::from_buf(&recv_buf[0..bytes_len]) {
+            if let Some(icmp) = nex_packet::icmp::IcmpPacket::from_buf(packet.payload().as_ref()) {
+                let ip_addr: IpAddr = IpAddr::V4(packet.header.source);
+                match icmp.header.icmp_type {
+                    IcmpType::EchoReply => return Some((ip_addr, Some(packet.header.ttl), true)),
                     IcmpType::DestinationUnreachable => {
-                        return Some((ip_addr, Some(packet.get_ttl()), false));
+                        return Some((ip_addr, Some(packet.header.ttl), false));
                     }
                     _ => {}
                 }
             }
         }
-    } else if let Some(icmp_packet) = nex_packet::icmpv6::Icmpv6Packet::new(&recv_buf[0..bytes_len])
+    } else if let Some(icmp_packet) =
+        nex_packet::icmpv6::Icmpv6Packet::from_buf(&recv_buf[0..bytes_len])
     {
-        match icmp_packet.get_icmpv6_type() {
+        match icmp_packet.header.icmpv6_type {
             Icmpv6Type::EchoReply => return Some((dst_ip, None, true)),
             Icmpv6Type::DestinationUnreachable => return Some((dst_ip, None, false)),
             _ => {}
