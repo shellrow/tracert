@@ -14,15 +14,15 @@ pub enum NodeType {
 #[derive(Clone, Debug)]
 pub struct Node {
     /// Probe sequence number
-    pub seq: u8,
+    pub sequence: u8,
     /// Node IP address
     pub ip_addr: IpAddr,
-    /// Resolved host name, or the IP string if reverse lookup fails
-    pub host_name: String,
+    /// Resolved hostname, or the IP string if reverse lookup fails
+    pub hostname: String,
     /// TTL value from the received packet
     pub ttl: Option<u8>,
     /// Hop count from the source
-    pub hop: Option<u8>,
+    pub hop_count: Option<u8>,
     /// Traceroute hop role
     pub node_type: NodeType,
     /// Round-trip time

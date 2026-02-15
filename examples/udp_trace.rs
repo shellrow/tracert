@@ -18,14 +18,20 @@ async fn main() {
     while !handle.is_finished() {
         let msg = rx.try_recv();
         if let Ok(msg) = msg {
-            println!("{} {} {:?} {:?}", msg.seq, msg.ip_addr, msg.hop, msg.rtt);
+            println!(
+                "{} {} {:?} {:?}",
+                msg.sequence, msg.ip_addr, msg.hop_count, msg.rtt
+            );
         } else {
             sleep(Duration::from_millis(20)).await;
         }
     }
 
     while let Ok(msg) = rx.try_recv() {
-        println!("{} {} {:?} {:?}", msg.seq, msg.ip_addr, msg.hop, msg.rtt);
+        println!(
+            "{} {} {:?} {:?}",
+            msg.sequence, msg.ip_addr, msg.hop_count, msg.rtt
+        );
     }
 
     println!("Result:");

@@ -32,7 +32,7 @@ async fn main() {
                 if let Ok(msg) = rx.try_recv() {
                     println!(
                         "[{}] hop={} node={} rtt={:?}",
-                        dst_ip, msg.seq, msg.ip_addr, msg.rtt
+                        dst_ip, msg.sequence, msg.ip_addr, msg.rtt
                     );
                 } else {
                     sleep(Duration::from_millis(20)).await;
@@ -42,7 +42,7 @@ async fn main() {
             while let Ok(msg) = rx.try_recv() {
                 println!(
                     "[{}] hop={} node={} rtt={:?}",
-                    dst_ip, msg.seq, msg.ip_addr, msg.rtt
+                    dst_ip, msg.sequence, msg.ip_addr, msg.rtt
                 );
             }
 

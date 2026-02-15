@@ -14,8 +14,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
 
-fn send_progress(tx: &broadcast::Sender<Node>, node: Node) {
-    let _ = tx.send(node);
+fn send_progress(progress_tx: &broadcast::Sender<Node>, node: Node) {
+    let _ = progress_tx.send(node);
 }
 
 fn parse_trace_reply(
@@ -52,7 +52,10 @@ fn parse_trace_reply(
     None
 }
 
-async fn trace_icmp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<TraceResult, String> {
+async fn trace_icmp(
+    tracer: Tracer,
+    progress_tx: &broadcast::Sender<Node>,
+) -> Result<TraceResult, String> {
     let mut nodes: Vec<Node> = vec![];
     let mut ip_set: HashSet<IpAddr> = HashSet::new();
     let family = SocketFamily::from_ip(&tracer.dst_ip);
@@ -100,7 +103,7 @@ async fn trace_icmp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trac
             let src_addr = addr.ip();
             if ip_set.contains(&src_addr) {
                 if ttl != tracer.max_hop {
-                    tokio::time::sleep(tracer.send_rate).await;
+                    tokio::time::sleep(tracer.send_interval).await;
                 }
                 continue;
             }
@@ -109,11 +112,11 @@ async fn trace_icmp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trac
             {
                 let recv_time = Instant::now().duration_since(send_time);
                 let node = Node {
-                    seq: ttl,
+                    sequence: ttl,
                     ip_addr,
-                    host_name: ip_addr.to_string(),
+                    hostname: ip_addr.to_string(),
                     ttl: node_ttl,
-                    hop: Some(ttl),
+                    hop_count: Some(ttl),
                     node_type: if reached {
                         NodeType::Destination
                     } else {
@@ -122,7 +125,7 @@ async fn trace_icmp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trac
                     rtt: recv_time,
                 };
                 nodes.push(node.clone());
-                send_progress(tx, node);
+                send_progress(progress_tx, node);
                 ip_set.insert(ip_addr);
                 if reached {
                     break;
@@ -131,13 +134,13 @@ async fn trace_icmp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trac
         }
 
         if ttl != tracer.max_hop {
-            tokio::time::sleep(tracer.send_rate).await;
+            tokio::time::sleep(tracer.send_interval).await;
         }
     }
 
     for node in &mut nodes {
         if node.node_type == NodeType::Destination {
-            node.host_name =
+            node.hostname =
                 dns_lookup::lookup_addr(&node.ip_addr).unwrap_or_else(|_| node.ip_addr.to_string());
         }
     }
@@ -149,7 +152,10 @@ async fn trace_icmp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trac
     })
 }
 
-async fn trace_udp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<TraceResult, String> {
+async fn trace_udp(
+    tracer: Tracer,
+    progress_tx: &broadcast::Sender<Node>,
+) -> Result<TraceResult, String> {
     let mut nodes: Vec<Node> = vec![];
     let mut ip_set: HashSet<IpAddr> = HashSet::new();
     let family = SocketFamily::from_ip(&tracer.dst_ip);
@@ -207,7 +213,7 @@ async fn trace_udp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trace
             let src_addr = addr.ip();
             if ip_set.contains(&src_addr) {
                 if ttl != tracer.max_hop {
-                    tokio::time::sleep(tracer.send_rate).await;
+                    tokio::time::sleep(tracer.send_interval).await;
                 }
                 continue;
             }
@@ -217,11 +223,11 @@ async fn trace_udp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trace
             {
                 let recv_time = Instant::now().duration_since(send_time);
                 let node = Node {
-                    seq: ttl,
+                    sequence: ttl,
                     ip_addr,
-                    host_name: ip_addr.to_string(),
+                    hostname: ip_addr.to_string(),
                     ttl: node_ttl,
-                    hop: Some(ttl),
+                    hop_count: Some(ttl),
                     node_type: if reached {
                         NodeType::Destination
                     } else {
@@ -230,7 +236,7 @@ async fn trace_udp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trace
                     rtt: recv_time,
                 };
                 nodes.push(node.clone());
-                send_progress(tx, node);
+                send_progress(progress_tx, node);
                 ip_set.insert(ip_addr);
                 if reached {
                     break;
@@ -239,13 +245,13 @@ async fn trace_udp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trace
         }
 
         if ttl != tracer.max_hop {
-            tokio::time::sleep(tracer.send_rate).await;
+            tokio::time::sleep(tracer.send_interval).await;
         }
     }
 
     for node in &mut nodes {
         if node.node_type == NodeType::Destination {
-            node.host_name =
+            node.hostname =
                 dns_lookup::lookup_addr(&node.ip_addr).unwrap_or_else(|_| node.ip_addr.to_string());
         }
     }
@@ -261,11 +267,11 @@ async fn trace_udp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trace
 
 pub(crate) async fn trace_route(
     tracer: Tracer,
-    tx: &broadcast::Sender<Node>,
+    progress_tx: &broadcast::Sender<Node>,
 ) -> Result<TraceResult, String> {
     match tracer.protocol {
-        Protocol::Udp => trace_udp(tracer, tx).await,
-        Protocol::Icmpv4 | Protocol::Icmpv6 => trace_icmp(tracer, tx).await,
+        Protocol::Udp => trace_udp(tracer, progress_tx).await,
+        Protocol::Icmpv4 | Protocol::Icmpv6 => trace_icmp(tracer, progress_tx).await,
         Protocol::Tcp => Err(String::from("TCP traceroute is not supported")),
     }
 }

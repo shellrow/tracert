@@ -9,7 +9,7 @@ pub(crate) const BASE_DST_PORT: u16 = 33435;
 
 /// Tracer structure
 ///
-/// Contains various settings for traceroute
+/// Holds runtime settings used by traceroute probes.
 #[derive(Clone, Debug)]
 pub struct Tracer {
     /// Source IP address
@@ -18,20 +18,20 @@ pub struct Tracer {
     pub dst_ip: IpAddr,
     /// Protocol used for traceroute
     pub protocol: Protocol,
-    /// Max hop
+    /// Maximum hop count
     pub max_hop: u8,
-    /// Timeout setting for trace   
+    /// Overall timeout for traceroute execution
     pub trace_timeout: Duration,
-    /// Timeout setting for packet receive  
+    /// Timeout for receiving each packet
     pub receive_timeout: Duration,
-    /// Packet send rate
-    pub send_rate: Duration,
+    /// Packet send interval
+    pub send_interval: Duration,
     /// Sender for progress messaging
-    pub tx: broadcast::Sender<Node>,
+    pub progress_tx: broadcast::Sender<Node>,
 }
 
 impl Tracer {
-    /// Create new Tracer instance with destination IP address
+    /// Create a new tracer for the destination IP address
     pub fn new(dst_ip: IpAddr) -> Result<Tracer, String> {
         match netdev::get_default_interface() {
             Ok(interface) => {
@@ -44,7 +44,7 @@ impl Tracer {
                         return Err(String::from("Failed to get default interface"));
                     }
                 };
-                let (tx, _) = broadcast::channel(256);
+                let (progress_tx, _) = broadcast::channel(256);
                 let tracer = Tracer {
                     src_ip: src_ip,
                     dst_ip: dst_ip,
@@ -52,8 +52,8 @@ impl Tracer {
                     max_hop: 64,
                     trace_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
-                    send_rate: Duration::from_millis(0),
-                    tx,
+                    send_interval: Duration::from_millis(0),
+                    progress_tx,
                 };
                 return Ok(tracer);
             }
@@ -62,7 +62,7 @@ impl Tracer {
             }
         }
     }
-    /// Trace route to destination
+    /// Run traceroute synchronously
     pub fn trace(&self) -> Result<TraceResult, String> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_time()
@@ -70,9 +70,9 @@ impl Tracer {
             .map_err(|e| e.to_string())?;
         runtime.block_on(self.trace_async())
     }
-    /// Trace route to destination asynchronously
+    /// Run traceroute asynchronously
     pub async fn trace_async(&self) -> Result<TraceResult, String> {
-        super::trace_route(self.clone(), &self.tx).await
+        super::trace_route(self.clone(), &self.progress_tx).await
     }
     /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr) {
@@ -122,16 +122,16 @@ impl Tracer {
     pub fn get_receive_timeout(&self) -> Duration {
         self.receive_timeout
     }
-    /// Set packet send rate
-    pub fn set_send_rate(&mut self, send_rate: Duration) {
-        self.send_rate = send_rate;
+    /// Set packet send interval
+    pub fn set_send_interval(&mut self, send_interval: Duration) {
+        self.send_interval = send_interval;
     }
-    /// Get packet send rate
-    pub fn get_send_rate(&self) -> Duration {
-        self.send_rate
+    /// Get packet send interval
+    pub fn get_send_interval(&self) -> Duration {
+        self.send_interval
     }
     /// Get progress receiver
     pub fn get_progress_receiver(&self) -> broadcast::Receiver<Node> {
-        self.tx.subscribe()
+        self.progress_tx.subscribe()
     }
 }

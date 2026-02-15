@@ -23,7 +23,7 @@ async fn main() {
         if let Ok(msg) = msg {
             println!(
                 "{} {}:{} {:?} {:?}",
-                msg.seq, msg.ip_addr, port, msg.hop, msg.rtt
+                msg.sequence, msg.ip_addr, port, msg.hop_count, msg.rtt
             );
         } else {
             sleep(Duration::from_millis(20)).await;
@@ -33,7 +33,7 @@ async fn main() {
     while let Ok(msg) = rx.try_recv() {
         println!(
             "{} {}:{} {:?} {:?}",
-            msg.seq, msg.ip_addr, port, msg.hop, msg.rtt
+            msg.sequence, msg.ip_addr, port, msg.hop_count, msg.rtt
         );
     }
 

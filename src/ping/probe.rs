@@ -13,8 +13,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
 
-fn send_progress(tx: &broadcast::Sender<Node>, node: Node) {
-    let _ = tx.send(node);
+fn send_progress(progress_tx: &broadcast::Sender<Node>, node: Node) {
+    let _ = progress_tx.send(node);
 }
 
 fn recv_icmp_reply(
@@ -46,8 +46,11 @@ fn recv_icmp_reply(
     None
 }
 
-async fn icmp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingResult, String> {
-    let host_name =
+async fn icmp_ping(
+    pinger: Pinger,
+    progress_tx: &broadcast::Sender<Node>,
+) -> Result<PingResult, String> {
+    let hostname =
         dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
 
@@ -71,7 +74,7 @@ async fn icmp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingR
 
     let start_time = Instant::now();
     let mut probe_time = Duration::from_millis(0);
-    for seq in 1..=pinger.count {
+    for sequence in 1..=pinger.probe_count {
         probe_time = Instant::now().duration_since(start_time);
         if probe_time > pinger.ping_timeout {
             return Ok(PingResult {
@@ -102,20 +105,20 @@ async fn icmp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingR
         if let Ok(Ok((ip_addr, ttl))) = recv {
             let recv_time = Instant::now().duration_since(send_time);
             let node = Node {
-                seq,
+                sequence,
                 ip_addr,
-                host_name: host_name.clone(),
+                hostname: hostname.clone(),
                 ttl,
-                hop: ttl.map(|v| super::guess_initial_ttl(v) - v),
+                hop_count: ttl.map(|v| super::guess_initial_ttl(v) - v),
                 node_type: NodeType::Destination,
                 rtt: recv_time,
             };
             results.push(node.clone());
-            send_progress(tx, node);
+            send_progress(progress_tx, node);
         }
 
-        if seq != pinger.count {
-            tokio::time::sleep(pinger.send_rate).await;
+        if sequence != pinger.probe_count {
+            tokio::time::sleep(pinger.send_interval).await;
         }
     }
 
@@ -126,15 +129,18 @@ async fn icmp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingR
     })
 }
 
-async fn tcp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingResult, String> {
-    let host_name =
+async fn tcp_ping(
+    pinger: Pinger,
+    progress_tx: &broadcast::Sender<Node>,
+) -> Result<PingResult, String> {
+    let hostname =
         dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
     let socket_addr = SocketAddr::new(pinger.dst_ip, pinger.dst_port);
     let mut probe_time = Duration::from_millis(0);
     let start_time = Instant::now();
 
-    for seq in 1..=pinger.count {
+    for sequence in 1..=pinger.probe_count {
         probe_time = Instant::now().duration_since(start_time);
         if probe_time > pinger.ping_timeout {
             return Ok(PingResult {
@@ -160,21 +166,21 @@ async fn tcp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingRe
             .await;
         let connect_end_time = Instant::now().duration_since(connect_start_time);
         let node = Node {
-            seq,
+            sequence,
             ip_addr: pinger.dst_ip,
-            host_name: host_name.clone(),
+            hostname: hostname.clone(),
             ttl: None,
-            hop: None,
+            hop_count: None,
             node_type: NodeType::Destination,
             rtt: connect_end_time,
         };
-        send_progress(tx, node.clone());
+        send_progress(progress_tx, node.clone());
         if connect_result.is_ok() {
             results.push(node.clone());
         }
 
-        if seq != pinger.count {
-            tokio::time::sleep(pinger.send_rate).await;
+        if sequence != pinger.probe_count {
+            tokio::time::sleep(pinger.send_interval).await;
         }
     }
 
@@ -185,8 +191,11 @@ async fn tcp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingRe
     })
 }
 
-async fn udp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingResult, String> {
-    let host_name =
+async fn udp_ping(
+    pinger: Pinger,
+    progress_tx: &broadcast::Sender<Node>,
+) -> Result<PingResult, String> {
+    let hostname =
         dns_lookup::lookup_addr(&pinger.dst_ip).unwrap_or_else(|_| pinger.dst_ip.to_string());
     let mut results: Vec<Node> = vec![];
 
@@ -214,7 +223,7 @@ async fn udp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingRe
 
     let start_time = Instant::now();
     let mut probe_time = Duration::from_millis(0);
-    for seq in 1..=pinger.count {
+    for sequence in 1..=pinger.probe_count {
         probe_time = Instant::now().duration_since(start_time);
         if probe_time > pinger.ping_timeout {
             return Ok(PingResult {
@@ -251,20 +260,20 @@ async fn udp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingRe
         if let Ok(Ok((ip_addr, ttl))) = recv {
             let recv_time = Instant::now().duration_since(send_time);
             let node = Node {
-                seq,
+                sequence,
                 ip_addr,
-                host_name: host_name.clone(),
+                hostname: hostname.clone(),
                 ttl,
-                hop: ttl.map(|v| super::guess_initial_ttl(v) - v),
+                hop_count: ttl.map(|v| super::guess_initial_ttl(v) - v),
                 node_type: NodeType::Destination,
                 rtt: recv_time,
             };
             results.push(node.clone());
-            send_progress(tx, node);
+            send_progress(progress_tx, node);
         }
 
-        if seq != pinger.count {
-            tokio::time::sleep(pinger.send_rate).await;
+        if sequence != pinger.probe_count {
+            tokio::time::sleep(pinger.send_interval).await;
         }
     }
 
@@ -277,12 +286,12 @@ async fn udp_ping(pinger: Pinger, tx: &broadcast::Sender<Node>) -> Result<PingRe
 
 pub(crate) async fn ping(
     pinger: Pinger,
-    tx: &broadcast::Sender<Node>,
+    progress_tx: &broadcast::Sender<Node>,
 ) -> Result<PingResult, String> {
     match pinger.protocol {
-        ProbeProtocol::Icmpv4 => icmp_ping(pinger, tx).await,
-        ProbeProtocol::Icmpv6 => icmp_ping(pinger, tx).await,
-        ProbeProtocol::Tcp => tcp_ping(pinger, tx).await,
-        ProbeProtocol::Udp => udp_ping(pinger, tx).await,
+        ProbeProtocol::Icmpv4 => icmp_ping(pinger, progress_tx).await,
+        ProbeProtocol::Icmpv6 => icmp_ping(pinger, progress_tx).await,
+        ProbeProtocol::Tcp => tcp_ping(pinger, progress_tx).await,
+        ProbeProtocol::Udp => udp_ping(pinger, progress_tx).await,
     }
 }

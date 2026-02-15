@@ -1,4 +1,4 @@
-/// Protocol specification
+/// Supported probe protocols.
 #[derive(Clone, Debug)]
 pub enum Protocol {
     /// ICMPv4

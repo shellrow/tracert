@@ -5,9 +5,9 @@ use std::net::IpAddr;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
-/// Pinger structure
+/// Ping configuration and execution context.
 ///
-/// Contains various settings for ping
+/// Holds runtime settings used by ping probes.
 #[derive(Clone, Debug)]
 pub struct Pinger {
     /// Source IP address
@@ -16,28 +16,28 @@ pub struct Pinger {
     pub dst_ip: IpAddr,
     /// Destination port
     pub dst_port: u16,
-    /// Protocol used for PING
+    /// Protocol used for ping
     pub protocol: Protocol,
     /// Time to live
     ///
     /// Default is 64
     pub ttl: u8,
-    /// Ping execution count
+    /// Number of probes to send
     ///
     /// Default is 4
-    pub count: u8,
-    /// Timeout setting for ping   
+    pub probe_count: u8,
+    /// Overall timeout for ping execution
     pub ping_timeout: Duration,
-    /// Timeout setting for packet receive  
+    /// Timeout for receiving each packet
     pub receive_timeout: Duration,
-    /// Packet send rate
-    pub send_rate: Duration,
+    /// Packet send interval
+    pub send_interval: Duration,
     /// Sender for progress messaging
-    pub tx: broadcast::Sender<Node>,
+    pub progress_tx: broadcast::Sender<Node>,
 }
 
 impl Pinger {
-    /// Create new Pinger instance with destination IP address
+    /// Create a new pinger for the destination IP address
     pub fn new(dst_ip: IpAddr) -> Result<Pinger, String> {
         match netdev::get_default_interface() {
             Ok(interface) => {
@@ -50,18 +50,18 @@ impl Pinger {
                         return Err(String::from("Failed to get default interface"));
                     }
                 };
-                let (tx, _) = broadcast::channel(256);
+                let (progress_tx, _) = broadcast::channel(256);
                 let pinger = Pinger {
                     src_ip: src_ip,
                     dst_ip: dst_ip,
                     dst_port: 0,
                     protocol: Protocol::Icmpv4,
                     ttl: 64,
-                    count: 4,
+                    probe_count: 4,
                     ping_timeout: Duration::from_millis(30000),
                     receive_timeout: Duration::from_millis(1000),
-                    send_rate: Duration::from_millis(1000),
-                    tx,
+                    send_interval: Duration::from_millis(1000),
+                    progress_tx,
                 };
                 return Ok(pinger);
             }
@@ -70,7 +70,7 @@ impl Pinger {
             }
         }
     }
-    /// Run ping
+    /// Run ping synchronously
     pub fn ping(&self) -> Result<PingResult, String> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_time()
@@ -80,7 +80,7 @@ impl Pinger {
     }
     /// Run ping asynchronously
     pub async fn ping_async(&self) -> Result<PingResult, String> {
-        super::ping(self.clone(), &self.tx).await
+        super::ping(self.clone(), &self.progress_tx).await
     }
     /// Set source IP address
     pub fn set_src_ip(&mut self, src_ip: IpAddr) {
@@ -114,21 +114,21 @@ impl Pinger {
     pub fn get_protocol(&self) -> Protocol {
         self.protocol.clone()
     }
-    /// Set Time to live
+    /// Set time to live
     pub fn set_ttl(&mut self, ttl: u8) {
         self.ttl = ttl;
     }
-    /// Get Time to live
+    /// Get time to live
     pub fn get_ttl(&self) -> u8 {
         self.ttl
     }
-    /// Set ping execution count
-    pub fn set_count(&mut self, count: u8) {
-        self.count = count;
+    /// Set probe count
+    pub fn set_probe_count(&mut self, probe_count: u8) {
+        self.probe_count = probe_count;
     }
-    /// Get ping execution count
-    pub fn get_count(&self) -> u8 {
-        self.count
+    /// Get probe count
+    pub fn get_probe_count(&self) -> u8 {
+        self.probe_count
     }
     /// Set ping timeout
     pub fn set_ping_timeout(&mut self, ping_timeout: Duration) {
@@ -146,16 +146,16 @@ impl Pinger {
     pub fn get_receive_timeout(&self) -> Duration {
         self.receive_timeout
     }
-    /// Set packet send rate
-    pub fn set_send_rate(&mut self, send_rate: Duration) {
-        self.send_rate = send_rate;
+    /// Set packet send interval
+    pub fn set_send_interval(&mut self, send_interval: Duration) {
+        self.send_interval = send_interval;
     }
-    /// Get packet send rate
-    pub fn get_send_rate(&self) -> Duration {
-        self.send_rate
+    /// Get packet send interval
+    pub fn get_send_interval(&self) -> Duration {
+        self.send_interval
     }
     /// Get progress receiver
     pub fn get_progress_receiver(&self) -> broadcast::Receiver<Node> {
-        self.tx.subscribe()
+        self.progress_tx.subscribe()
     }
 }
