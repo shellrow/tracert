@@ -12,8 +12,8 @@ license = "MIT"
 
 [dependencies]
 socket2 = { version = "0.5", features = ["all"] }
-nex-packet = "0.19"
-dns-lookup = "2.0"
+nex-packet = "0.25"
+dns-lookup = "2.1"
 netdev = "0.40"
 rand = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "time", "net", "sync"] }

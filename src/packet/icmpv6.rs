@@ -1,11 +1,14 @@
-use nex_packet::Packet;
 use nex_packet::icmpv6::Icmpv6Type;
-use nex_packet::icmpv6::echo_request::MutableEchoRequestPacket;
+use nex_packet::icmpv6::MutableIcmpv6Packet;
+use nex_packet::packet::MutablePacket;
 
-pub fn build_icmpv6_packet(icmp_packet: &mut MutableEchoRequestPacket) {
-    icmp_packet.set_icmpv6_type(Icmpv6Type::EchoRequest);
-    icmp_packet.set_identifier(rand::random::<u16>());
-    icmp_packet.set_sequence_number(rand::random::<u16>());
-    let icmp_check_sum = nex_packet::util::checksum(&icmp_packet.packet(), 1);
-    icmp_packet.set_checksum(icmp_check_sum);
+pub fn build_icmpv6_packet(icmp_packet: &mut MutableIcmpv6Packet) {
+    icmp_packet.set_type(Icmpv6Type::EchoRequest);
+    let identifier = rand::random::<u16>().to_be_bytes();
+    let sequence_number = rand::random::<u16>().to_be_bytes();
+    let payload = icmp_packet.payload_mut();
+    payload[0..2].copy_from_slice(&identifier);
+    payload[2..4].copy_from_slice(&sequence_number);
+    let icmp_checksum = nex_packet::util::checksum(icmp_packet.packet(), 1);
+    icmp_packet.set_checksum(icmp_checksum);
 }
