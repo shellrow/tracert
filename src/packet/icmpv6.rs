@@ -1,6 +1,6 @@
-use nex_packet::icmpv6::echo_request::MutableEchoRequestPacket;
-use nex_packet::icmpv6::Icmpv6Type;
 use nex_packet::Packet;
+use nex_packet::icmpv6::Icmpv6Type;
+use nex_packet::icmpv6::echo_request::MutableEchoRequestPacket;
 
 pub fn build_icmpv6_packet(icmp_packet: &mut MutableEchoRequestPacket) {
     icmp_packet.set_icmpv6_type(Icmpv6Type::EchoRequest);
