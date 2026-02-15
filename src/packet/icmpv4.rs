@@ -1,6 +1,6 @@
-use nex_packet::icmp::echo_request::MutableEchoRequestPacket;
-use nex_packet::icmp::IcmpType;
 use nex_packet::Packet;
+use nex_packet::icmp::IcmpType;
+use nex_packet::icmp::echo_request::MutableEchoRequestPacket;
 
 pub fn build_icmpv4_packet(icmp_packet: &mut MutableEchoRequestPacket) {
     icmp_packet.set_icmp_type(IcmpType::EchoRequest);

@@ -5,10 +5,10 @@ use crate::packet;
 use crate::protocol::Protocol;
 use crate::socket::icmp::{AsyncIcmpSocket, IcmpConfig};
 use crate::socket::udp::UdpConfig;
-use crate::socket::{udp::AsyncUdpSocket, SocketFamily};
+use crate::socket::{SocketFamily, udp::AsyncUdpSocket};
+use nex_packet::Packet;
 use nex_packet::icmp::IcmpType;
 use nex_packet::icmpv6::Icmpv6Type;
-use nex_packet::Packet;
 use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::{Duration, Instant};
@@ -30,7 +30,7 @@ fn parse_trace_reply(
                 let ip_addr: IpAddr = IpAddr::V4(packet.get_source());
                 match icmp.get_icmp_type() {
                     IcmpType::TimeExceeded => {
-                        return Some((ip_addr, Some(packet.get_ttl()), false))
+                        return Some((ip_addr, Some(packet.get_ttl()), false));
                     }
                     IcmpType::DestinationUnreachable => {
                         return Some((ip_addr, Some(packet.get_ttl()), true));
