@@ -1,32 +1,30 @@
 use std::net::IpAddr;
 use std::time::Duration;
 
-/// Node type
-#[derive(Clone, Debug, PartialEq)]
+/// Hop role in traceroute results.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NodeType {
-    /// Default gateway
-    DefaultGateway,
-    /// Relay node
-    Relay,
-    /// Destination host
+    /// Transit router (non-final hop)
+    Hop,
+    /// Final destination
     Destination,
 }
 
-/// Node structure
+/// Probe result for a single node.
 #[derive(Clone, Debug)]
 pub struct Node {
-    /// Sequence number
+    /// Probe sequence number
     pub seq: u8,
-    /// IP address
+    /// Node IP address
     pub ip_addr: IpAddr,
-    /// Host name
+    /// Resolved host name, or the IP string if reverse lookup fails
     pub host_name: String,
-    /// Time To Live
+    /// TTL value from the received packet
     pub ttl: Option<u8>,
-    /// Number of hops
+    /// Hop count from the source
     pub hop: Option<u8>,
-    /// Node type
+    /// Traceroute hop role
     pub node_type: NodeType,
-    /// Round Trip Time
+    /// Round-trip time
     pub rtt: Duration,
 }

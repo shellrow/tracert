@@ -116,10 +116,8 @@ async fn trace_icmp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trac
                     hop: Some(ttl),
                     node_type: if reached {
                         NodeType::Destination
-                    } else if ttl == 1 {
-                        NodeType::DefaultGateway
                     } else {
-                        NodeType::Relay
+                        NodeType::Hop
                     },
                     rtt: recv_time,
                 };
@@ -226,10 +224,8 @@ async fn trace_udp(tracer: Tracer, tx: &broadcast::Sender<Node>) -> Result<Trace
                     hop: Some(ttl),
                     node_type: if reached {
                         NodeType::Destination
-                    } else if ttl == 1 {
-                        NodeType::DefaultGateway
                     } else {
-                        NodeType::Relay
+                        NodeType::Hop
                     },
                     rtt: recv_time,
                 };
