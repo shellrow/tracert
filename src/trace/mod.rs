@@ -6,24 +6,24 @@ pub use tracer::*;
 use crate::node::Node;
 use std::time::Duration;
 
-/// Exit status of traceroute
+/// Completion status of a traceroute run.
 #[derive(Clone, Debug)]
 pub enum TraceStatus {
-    /// Successfully completed
+    /// Completed successfully.
     Done,
-    /// Interrupted by error
+    /// Ended due to an error.
     Error,
-    /// Execution time exceeds the configured timeout value
+    /// Stopped because execution exceeded the configured timeout.
     Timeout,
 }
 
-/// Result of traceroute
+/// Aggregated result of a traceroute run.
 #[derive(Clone, Debug)]
 pub struct TraceResult {
-    /// Nodes to destination
+    /// Observed nodes along the route.
     pub nodes: Vec<Node>,
-    /// Traceroute status
+    /// Completion status.
     pub status: TraceStatus,
-    /// The entire traceroute time
+    /// Total probe time for the run.
     pub probe_time: Duration,
 }
