@@ -66,6 +66,7 @@ impl Tracer {
     pub fn trace(&self) -> Result<TraceResult, String> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_time()
+            .enable_io()
             .build()
             .map_err(|e| e.to_string())?;
         runtime.block_on(self.trace_async())
