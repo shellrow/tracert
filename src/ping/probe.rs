@@ -23,16 +23,16 @@ fn recv_icmp_reply(
     bytes_len: usize,
 ) -> Option<(IpAddr, Option<u8>, bool)> {
     if dst_ip.is_ipv4() {
-        if let Some(packet) = nex_packet::ipv4::Ipv4Packet::from_buf(&recv_buf[0..bytes_len]) {
-            if let Some(icmp) = nex_packet::icmp::IcmpPacket::from_buf(packet.payload().as_ref()) {
-                let ip_addr: IpAddr = IpAddr::V4(packet.header.source);
-                match icmp.header.icmp_type {
-                    IcmpType::EchoReply => return Some((ip_addr, Some(packet.header.ttl), true)),
-                    IcmpType::DestinationUnreachable => {
-                        return Some((ip_addr, Some(packet.header.ttl), false));
-                    }
-                    _ => {}
+        if let Some(packet) = nex_packet::ipv4::Ipv4Packet::from_buf(&recv_buf[0..bytes_len])
+            && let Some(icmp) = nex_packet::icmp::IcmpPacket::from_buf(packet.payload().as_ref())
+        {
+            let ip_addr: IpAddr = IpAddr::V4(packet.header.source);
+            match icmp.header.icmp_type {
+                IcmpType::EchoReply => return Some((ip_addr, Some(packet.header.ttl), true)),
+                IcmpType::DestinationUnreachable => {
+                    return Some((ip_addr, Some(packet.header.ttl), false));
                 }
+                _ => {}
             }
         }
     } else if let Some(icmp_packet) =
@@ -74,9 +74,8 @@ async fn icmp_ping(
     };
 
     let start_time = Instant::now();
-    let mut probe_time = Duration::from_millis(0);
     for sequence in 1..=pinger.probe_count {
-        probe_time = Instant::now().duration_since(start_time);
+        let probe_time = Instant::now().duration_since(start_time);
         if probe_time > pinger.ping_timeout {
             return Ok(PingResult {
                 results,
@@ -86,7 +85,10 @@ async fn icmp_ping(
         }
 
         let send_time = Instant::now();
-        let _ = icmp_socket.send_to(&icmp_packet, socket_addr).await;
+        icmp_socket
+            .send_to(&icmp_packet, socket_addr)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let mut buf = vec![0u8; 2048];
         let recv = tokio::time::timeout(pinger.receive_timeout, async {
@@ -94,10 +96,9 @@ async fn icmp_ping(
                 let (bytes_len, _) = icmp_socket.recv_from(&mut buf).await?;
                 if let Some((ip_addr, ttl, is_echo_reply)) =
                     recv_icmp_reply(pinger.dst_ip, &buf, bytes_len)
+                    && is_echo_reply
                 {
-                    if is_echo_reply {
-                        return Ok::<_, std::io::Error>((ip_addr, ttl));
-                    }
+                    return Ok::<_, std::io::Error>((ip_addr, ttl));
                 }
             }
         })
@@ -123,6 +124,7 @@ async fn icmp_ping(
         }
     }
 
+    let probe_time = Instant::now().duration_since(start_time);
     Ok(PingResult {
         results,
         status: PingStatus::Done,
@@ -223,9 +225,8 @@ async fn udp_ping(
         .map_err(|e| format!("{}", e))?;
 
     let start_time = Instant::now();
-    let mut probe_time = Duration::from_millis(0);
     for sequence in 1..=pinger.probe_count {
-        probe_time = Instant::now().duration_since(start_time);
+        let probe_time = Instant::now().duration_since(start_time);
         if probe_time > pinger.ping_timeout {
             return Ok(PingResult {
                 results,
@@ -249,10 +250,9 @@ async fn udp_ping(
                 let (bytes_len, _addr) = icmp_socket.recv_from(&mut buf).await?;
                 if let Some((ip_addr, ttl, is_echo_reply)) =
                     recv_icmp_reply(pinger.dst_ip, &buf, bytes_len)
+                    && !is_echo_reply
                 {
-                    if !is_echo_reply {
-                        return Ok::<_, std::io::Error>((ip_addr, ttl));
-                    }
+                    return Ok::<_, std::io::Error>((ip_addr, ttl));
                 }
             }
         })
@@ -278,6 +278,7 @@ async fn udp_ping(
         }
     }
 
+    let probe_time = Instant::now().duration_since(start_time);
     Ok(PingResult {
         results,
         status: PingStatus::Done,
