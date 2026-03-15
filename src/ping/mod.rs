@@ -7,7 +7,7 @@ use crate::node::Node;
 use std::time::Duration;
 
 /// Completion status of a ping run.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PingStatus {
     /// Completed successfully.
     Done,
@@ -35,5 +35,20 @@ pub(crate) fn guess_initial_ttl(ttl: u8) -> u8 {
         128
     } else {
         255
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::guess_initial_ttl;
+
+    #[test]
+    fn guesses_common_initial_ttl_buckets() {
+        assert_eq!(guess_initial_ttl(1), 64);
+        assert_eq!(guess_initial_ttl(64), 64);
+        assert_eq!(guess_initial_ttl(65), 128);
+        assert_eq!(guess_initial_ttl(128), 128);
+        assert_eq!(guess_initial_ttl(129), 255);
+        assert_eq!(guess_initial_ttl(255), 255);
     }
 }

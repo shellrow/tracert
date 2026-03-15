@@ -5,6 +5,14 @@ use std::net::IpAddr;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+fn default_protocol(dst_ip: IpAddr) -> Protocol {
+    if dst_ip.is_ipv4() {
+        Protocol::Icmpv4
+    } else {
+        Protocol::Icmpv6
+    }
+}
+
 /// Configuration and execution context for ping probes.
 #[derive(Clone, Debug)]
 pub struct Pinger {
@@ -37,21 +45,19 @@ impl Pinger {
     pub fn new(dst_ip: IpAddr) -> Result<Pinger, String> {
         match netdev::get_default_interface() {
             Ok(interface) => {
-                let src_ip: IpAddr = if dst_ip.is_ipv4() && interface.ipv4.len() > 0 {
+                let src_ip: IpAddr = if dst_ip.is_ipv4() && !interface.ipv4.is_empty() {
                     IpAddr::V4(interface.ipv4[0].addr())
+                } else if !interface.ipv6.is_empty() {
+                    IpAddr::V6(interface.ipv6[0].addr())
                 } else {
-                    if interface.ipv6.len() > 0 {
-                        IpAddr::V6(interface.ipv6[0].addr())
-                    } else {
-                        return Err(String::from("Failed to get default interface"));
-                    }
+                    return Err(String::from("Failed to get default interface"));
                 };
                 let (progress_tx, _) = broadcast::channel(256);
                 let pinger = Pinger {
-                    src_ip: src_ip,
-                    dst_ip: dst_ip,
+                    src_ip,
+                    dst_ip,
                     dst_port: 0,
-                    protocol: Protocol::Icmpv4,
+                    protocol: default_protocol(dst_ip),
                     ttl: 64,
                     probe_count: 4,
                     ping_timeout: Duration::from_millis(30000),
@@ -59,17 +65,16 @@ impl Pinger {
                     send_interval: Duration::from_millis(1000),
                     progress_tx,
                 };
-                return Ok(pinger);
+                Ok(pinger)
             }
-            Err(e) => {
-                return Err(format!("{}", e));
-            }
+            Err(e) => Err(e.to_string()),
         }
     }
     /// Runs ping synchronously.
     pub fn ping(&self) -> Result<PingResult, String> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_time()
+            .enable_io()
             .build()
             .map_err(|e| e.to_string())?;
         runtime.block_on(self.ping_async())
@@ -108,7 +113,7 @@ impl Pinger {
     }
     /// Returns the probe protocol.
     pub fn get_protocol(&self) -> Protocol {
-        self.protocol.clone()
+        self.protocol
     }
     /// Sets the TTL value.
     pub fn set_ttl(&mut self, ttl: u8) {
@@ -153,5 +158,27 @@ impl Pinger {
     /// Returns a receiver for per-probe progress events.
     pub fn get_progress_receiver(&self) -> broadcast::Receiver<Node> {
         self.progress_tx.subscribe()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+    #[test]
+    fn default_protocol_matches_ipv4_dst() {
+        assert_eq!(
+            default_protocol(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1))),
+            Protocol::Icmpv4
+        );
+    }
+
+    #[test]
+    fn default_protocol_matches_ipv6_dst() {
+        assert_eq!(
+            default_protocol(IpAddr::V6(Ipv6Addr::LOCALHOST)),
+            Protocol::Icmpv6
+        );
     }
 }

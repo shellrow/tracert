@@ -13,7 +13,7 @@ pub enum IcmpSocketType {
 }
 
 impl IcmpSocketType {
-    fn to_sock_type(&self) -> Type {
+    fn socket_type(self) -> Type {
         match self {
             IcmpSocketType::Dgram => Type::DGRAM,
             IcmpSocketType::Raw => Type::RAW,
@@ -67,13 +67,13 @@ impl AsyncIcmpSocket {
         };
 
         let socket = match Socket::new(
-            config.family.to_domain(),
-            config.sock_type_hint.to_sock_type(),
+            config.family.domain(),
+            config.sock_type_hint.socket_type(),
             proto,
         ) {
             Ok(sock) => sock,
             Err(_) => Socket::new(
-                config.family.to_domain(),
+                config.family.domain(),
                 config.sock_type_hint.fallback(),
                 proto,
             )?,

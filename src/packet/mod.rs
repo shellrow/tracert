@@ -18,14 +18,14 @@ const ICMPV6_HEADER_SIZE: usize = nex_packet::icmpv6::ICMPV6_HEADER_LEN;
 pub(crate) const DEFAULT_SRC_PORT: u16 = 58443;
 
 pub fn build_icmpv4_echo_packet() -> Vec<u8> {
-    let mut buf = vec![0; ICMPV4_HEADER_SIZE];
+    let mut buf = [0; ICMPV4_HEADER_SIZE];
     let mut icmp_packet = nex_packet::icmp::MutableIcmpPacket::new(&mut buf[..]).unwrap();
     icmpv4::build_icmpv4_packet(&mut icmp_packet);
     icmp_packet.packet().to_vec()
 }
 
 pub fn build_icmpv6_echo_packet() -> Vec<u8> {
-    let mut buf = vec![0; ICMPV6_HEADER_SIZE];
+    let mut buf = [0; ICMPV6_HEADER_SIZE];
     let mut icmp_packet = nex_packet::icmpv6::MutableIcmpv6Packet::new(&mut buf[..]).unwrap();
     icmpv6::build_icmpv6_packet(&mut icmp_packet);
     icmp_packet.packet().to_vec()

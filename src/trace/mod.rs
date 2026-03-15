@@ -7,7 +7,7 @@ use crate::node::Node;
 use std::time::Duration;
 
 /// Completion status of a traceroute run.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TraceStatus {
     /// Completed successfully.
     Done,

@@ -22,7 +22,7 @@ impl SocketFamily {
         matches!(self, SocketFamily::Ipv4)
     }
 
-    pub fn to_domain(&self) -> socket2::Domain {
+    pub fn domain(self) -> socket2::Domain {
         match self {
             SocketFamily::Ipv4 => socket2::Domain::IPV4,
             SocketFamily::Ipv6 => socket2::Domain::IPV6,

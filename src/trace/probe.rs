@@ -11,7 +11,7 @@ use nex_packet::icmpv6::Icmpv6Type;
 use nex_packet::packet::Packet;
 use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tokio::sync::broadcast;
 
 fn send_progress(progress_tx: &broadcast::Sender<Node>, node: Node) {
@@ -25,19 +25,19 @@ fn parse_trace_reply(
     src_addr: IpAddr,
 ) -> Option<(IpAddr, Option<u8>, bool)> {
     if dst_ip.is_ipv4() {
-        if let Some(packet) = nex_packet::ipv4::Ipv4Packet::from_buf(&recv_buf[0..bytes_len]) {
-            if let Some(icmp) = nex_packet::icmp::IcmpPacket::from_buf(packet.payload().as_ref()) {
-                let ip_addr: IpAddr = IpAddr::V4(packet.header.source);
-                match icmp.header.icmp_type {
-                    IcmpType::TimeExceeded => {
-                        return Some((ip_addr, Some(packet.header.ttl), false));
-                    }
-                    IcmpType::DestinationUnreachable => {
-                        return Some((ip_addr, Some(packet.header.ttl), true));
-                    }
-                    IcmpType::EchoReply => return Some((ip_addr, Some(packet.header.ttl), true)),
-                    _ => {}
+        if let Some(packet) = nex_packet::ipv4::Ipv4Packet::from_buf(&recv_buf[0..bytes_len])
+            && let Some(icmp) = nex_packet::icmp::IcmpPacket::from_buf(packet.payload().as_ref())
+        {
+            let ip_addr: IpAddr = IpAddr::V4(packet.header.source);
+            match icmp.header.icmp_type {
+                IcmpType::TimeExceeded => {
+                    return Some((ip_addr, Some(packet.header.ttl), false));
                 }
+                IcmpType::DestinationUnreachable => {
+                    return Some((ip_addr, Some(packet.header.ttl), true));
+                }
+                IcmpType::EchoReply => return Some((ip_addr, Some(packet.header.ttl), true)),
+                _ => {}
             }
         }
     } else if let Some(icmp_packet) =
@@ -62,10 +62,9 @@ async fn trace_icmp(
     let family = SocketFamily::from_ip(&tracer.dst_ip);
 
     let start_time = Instant::now();
-    let mut trace_time = Duration::from_millis(0);
 
     for ttl in 1..=tracer.max_hop {
-        trace_time = Instant::now().duration_since(start_time);
+        let trace_time = Instant::now().duration_since(start_time);
         if trace_time > tracer.trace_timeout {
             return Ok(TraceResult {
                 nodes,
@@ -95,7 +94,10 @@ async fn trace_icmp(
         };
         let send_time = Instant::now();
 
-        let _ = icmp_socket.send_to(&icmp_packet, socket_addr).await;
+        icmp_socket
+            .send_to(&icmp_packet, socket_addr)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let mut buf = vec![0u8; 2048];
         let recv =
@@ -146,6 +148,7 @@ async fn trace_icmp(
         }
     }
 
+    let trace_time = Instant::now().duration_since(start_time);
     Ok(TraceResult {
         nodes,
         status: TraceStatus::Done,
@@ -178,9 +181,8 @@ async fn trace_udp(
         .map_err(|e| format!("{}", e))?;
 
     let start_time = Instant::now();
-    let mut trace_time = Duration::from_millis(0);
     for ttl in 1..=tracer.max_hop {
-        trace_time = Instant::now().duration_since(start_time);
+        let trace_time = Instant::now().duration_since(start_time);
         if trace_time > tracer.trace_timeout {
             return Ok(TraceResult {
                 nodes,
@@ -259,6 +261,7 @@ async fn trace_udp(
 
     let _ = udp_socket;
 
+    let trace_time = Instant::now().duration_since(start_time);
     Ok(TraceResult {
         nodes,
         status: TraceStatus::Done,

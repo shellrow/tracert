@@ -35,19 +35,17 @@ impl Tracer {
     pub fn new(dst_ip: IpAddr) -> Result<Tracer, String> {
         match netdev::get_default_interface() {
             Ok(interface) => {
-                let src_ip: IpAddr = if dst_ip.is_ipv4() && interface.ipv4.len() > 0 {
+                let src_ip: IpAddr = if dst_ip.is_ipv4() && !interface.ipv4.is_empty() {
                     IpAddr::V4(interface.ipv4[0].addr())
+                } else if !interface.ipv6.is_empty() {
+                    IpAddr::V6(interface.ipv6[0].addr())
                 } else {
-                    if interface.ipv6.len() > 0 {
-                        IpAddr::V6(interface.ipv6[0].addr())
-                    } else {
-                        return Err(String::from("Failed to get default interface"));
-                    }
+                    return Err(String::from("Failed to get default interface"));
                 };
                 let (progress_tx, _) = broadcast::channel(256);
                 let tracer = Tracer {
-                    src_ip: src_ip,
-                    dst_ip: dst_ip,
+                    src_ip,
+                    dst_ip,
                     protocol: Protocol::Udp,
                     max_hop: 64,
                     trace_timeout: Duration::from_millis(30000),
@@ -55,11 +53,9 @@ impl Tracer {
                     send_interval: Duration::from_millis(0),
                     progress_tx,
                 };
-                return Ok(tracer);
+                Ok(tracer)
             }
-            Err(e) => {
-                return Err(format!("{}", e));
-            }
+            Err(e) => Err(e.to_string()),
         }
     }
     /// Runs traceroute synchronously.
@@ -97,7 +93,7 @@ impl Tracer {
     }
     /// Returns the probe protocol.
     pub fn get_protocol(&self) -> Protocol {
-        self.protocol.clone()
+        self.protocol
     }
     /// Sets the maximum hop count.
     pub fn set_max_hop(&mut self, max_hop: u8) {
