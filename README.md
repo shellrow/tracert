@@ -4,7 +4,7 @@
 [tracert-url]: https://github.com/shellrow/tracert
 
 # tracert [![Crates.io][crates-badge]][crates-url] ![License][license-badge]
-Cross-platform library for traceroute and ping. Written in Rust.
+Cross-platform library for traceroute and ping. 
 tokio-based asynchronous probing is supported for all features.
 
 ## Features
@@ -25,7 +25,7 @@ tokio-based asynchronous probing is supported for all features.
 Add `tracert` to your dependencies
 ```
 [dependencies]
-tracert = "0.11"
+tracert = "0.12"
 ```
 
 ## Examples
