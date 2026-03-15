@@ -1,5 +1,5 @@
 /// Supported probe protocols.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Protocol {
     /// Internet Control Message Protocol v4.
     Icmpv4,

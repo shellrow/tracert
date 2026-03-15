@@ -11,7 +11,7 @@ pub enum UdpSocketType {
 }
 
 impl UdpSocketType {
-    fn to_sock_type(&self) -> Type {
+    fn socket_type(self) -> Type {
         match self {
             UdpSocketType::Dgram => Type::DGRAM,
         }
@@ -51,8 +51,8 @@ pub struct AsyncUdpSocket {
 impl AsyncUdpSocket {
     pub fn from_config(config: &UdpConfig) -> io::Result<Self> {
         let socket = Socket::new(
-            config.family.to_domain(),
-            config.socket_type.to_sock_type(),
+            config.family.domain(),
+            config.socket_type.socket_type(),
             Some(Protocol::UDP),
         )?;
         socket.set_nonblocking(true)?;

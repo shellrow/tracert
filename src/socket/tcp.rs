@@ -31,7 +31,7 @@ pub struct AsyncTcpSocket {
 
 impl AsyncTcpSocket {
     pub fn from_config(config: &TcpConfig) -> io::Result<Self> {
-        let socket = Socket::new(config.family.to_domain(), Type::STREAM, Some(Protocol::TCP))?;
+        let socket = Socket::new(config.family.domain(), Type::STREAM, Some(Protocol::TCP))?;
         socket.set_nonblocking(true)?;
 
         if let Some(ttl) = config.ttl {
